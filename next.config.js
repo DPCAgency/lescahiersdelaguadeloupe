@@ -5,7 +5,6 @@ const nextConfig = {
   },
   experimental: {
     cpus: 1,
-    serverComponentsExternalPackages: ['mupdf', 'canvas'],
   },
   images: {
     unoptimized: true,
@@ -13,10 +12,7 @@ const nextConfig = {
       { protocol: 'https', hostname: 'images.pexels.com' },
     ],
   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.alias.canvas = false;
-    }
+  webpack: (config) => {
     config.parallelism = 1;
     return config;
   },

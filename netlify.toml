@@ -2,11 +2,8 @@
 command = "rm -rf .next node_modules/.cache && npx next build"
 publish = ".next"
 
-[functions]
-included_files = [
-  "node_modules/mupdf/dist/**",
-  "node_modules/canvas/**"
-]
+[functions."process-import"]
+background = true
 
 [functions."process-import-background"]
 background = true

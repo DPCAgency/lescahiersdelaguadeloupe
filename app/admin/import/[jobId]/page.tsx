@@ -24,6 +24,15 @@ interface ImportJob {
 
 type LoadError = 'session' | 'forbidden' | 'not_found' | 'server' | null;
 
+const STATUS_LABELS: Record<string, string> = {
+  uploaded: 'En attente',
+  queued: 'En file d\'attente',
+  processing: 'Analyse en cours',
+  needs_review: 'Analyse terminée',
+  completed: 'Validé',
+  failed: 'Échec',
+};
+
 export default function ImportJobPage() {
   const router = useRouter();
   const params = useParams();
@@ -31,7 +40,7 @@ export default function ImportJobPage() {
 
   const [job, setJob] = useState<ImportJob | null>(null);
   const [loading, setLoading] = useState(true);
-  const [analyzing, setAnalyzing] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<LoadError>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -44,26 +53,10 @@ export default function ImportJobPage() {
     try {
       const result = await safeJsonFetch(`/api/import/jobs/${jobId}`, { credentials: 'same-origin' });
 
-      if (result.status === 401) {
-        setLoadError('session');
-        setLoading(false);
-        return;
-      }
-      if (result.status === 403) {
-        setLoadError('forbidden');
-        setLoading(false);
-        return;
-      }
-      if (result.status === 404) {
-        setLoadError('not_found');
-        setLoading(false);
-        return;
-      }
-      if (!result.ok) {
-        setLoadError('server');
-        setLoading(false);
-        return;
-      }
+      if (result.status === 401) { setLoadError('session'); setLoading(false); return; }
+      if (result.status === 403) { setLoadError('forbidden'); setLoading(false); return; }
+      if (result.status === 404) { setLoadError('not_found'); setLoading(false); return; }
+      if (!result.ok) { setLoadError('server'); setLoading(false); return; }
 
       const data = result.data as ImportJob;
       setJob(data);
@@ -74,7 +67,7 @@ export default function ImportJobPage() {
         router.push(`/admin/import/${jobId}/review`);
       }
 
-      if (data?.status === 'failed') {
+      if (data?.status === 'failed' || data?.status === 'completed') {
         if (pollRef.current) clearInterval(pollRef.current);
       }
     } catch {
@@ -83,29 +76,23 @@ export default function ImportJobPage() {
     }
   }, [jobId, router]);
 
-  useEffect(() => {
-    loadJob();
-  }, [loadJob]);
+  useEffect(() => { loadJob(); }, [loadJob]);
 
-  // Poll while processing
   useEffect(() => {
     if (job?.status === 'processing' && !pollRef.current) {
-      pollRef.current = setInterval(loadJob, 2500);
+      pollRef.current = setInterval(loadJob, 3000);
     }
     return () => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     };
   }, [job?.status, loadJob]);
 
   const startAnalysis = async () => {
-    setAnalyzing(true);
+    setStarting(true);
     setError(null);
 
     try {
-      const result = await safeJsonFetch('/api/import/analyze', {
+      const result = await safeJsonFetch('/api/import/analyze/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId }),
@@ -116,28 +103,27 @@ export default function ImportJobPage() {
       }
 
       const data = result.data as { success?: boolean; error?: string; status?: string };
-
       if (!data.success) {
-        throw new Error(data.error ?? 'Échec du démarrage de l\'analyse');
+        throw new Error(data.error ?? 'Échec du démarrage');
       }
 
-      // Start polling
       if (!pollRef.current) {
-        pollRef.current = setInterval(loadJob, 2500);
+        pollRef.current = setInterval(loadJob, 3000);
       }
+      loadJob();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erreur inconnue';
       setError(msg);
     }
 
-    setAnalyzing(false);
+    setStarting(false);
   };
 
   useEffect(() => {
-    if (job?.status === 'uploaded' && !analyzing && !error) {
+    if (job?.status === 'uploaded' && !starting && !error) {
       startAnalysis();
     }
-  }, [job, analyzing, error]);
+  }, [job, starting, error]);
 
   if (loading) {
     return (
@@ -195,10 +181,10 @@ export default function ImportJobPage() {
           )}
           <button
             onClick={startAnalysis}
-            disabled={analyzing}
+            disabled={starting}
             className="mt-4 flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
           >
-            {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Relancer l'analyse
           </button>
         </div>
@@ -206,21 +192,16 @@ export default function ImportJobPage() {
     );
   }
 
-  const isProcessing = job.status === 'processing';
-  const totalPages = job.total_pages ?? job.page_count ?? 0;
-  const processedPages = job.processed_pages ?? 0;
-  const failedPages = job.failed_pages ?? 0;
-  const currentPage = job.current_page ?? 0;
-  const progressPercent = isProcessing && totalPages > 0
-    ? Math.round(((processedPages + failedPages) / totalPages) * 100)
-    : job.progress;
+  const isProcessing = job.status === 'processing' || job.status === 'queued';
+  const progressPercent = job.progress;
 
   const steps = [
     { label: 'Téléversement du fichier', done: true },
-    { label: 'Téléchargement du fichier source', done: true },
-    { label: 'Rendu PDF des pages', done: progressPercent >= 25 },
-    { label: 'Analyse documentaire (IA)', done: !isProcessing && job.status === 'needs_review', active: isProcessing },
-    { label: 'Extraction des blocs éditoriaux', done: !isProcessing && job.status === 'needs_review', active: isProcessing },
+    { label: 'Téléchargement du fichier source', done: progressPercent >= 15 },
+    { label: 'Envoi du PDF à OpenAI', done: progressPercent >= 30 },
+    { label: 'Analyse documentaire (IA)', done: progressPercent >= 80, active: isProcessing && progressPercent >= 30 && progressPercent < 80 },
+    { label: 'Extraction des blocs éditoriaux', done: progressPercent >= 90, active: isProcessing && progressPercent >= 80 && progressPercent < 90 },
+    { label: 'Finalisation', done: job.status === 'needs_review', active: isProcessing && progressPercent >= 90 },
   ];
 
   return (
@@ -248,7 +229,6 @@ export default function ImportJobPage() {
       )}
 
       <div className="max-w-2xl rounded-lg border border-neutral-200 bg-white p-6">
-        {/* Steps */}
         <div className="space-y-4">
           {steps.map((step, i) => (
             <div key={i} className="flex items-center gap-4">
@@ -265,22 +245,22 @@ export default function ImportJobPage() {
                 <p className={`text-sm font-medium ${step.done || step.active ? 'text-neutral-700' : 'text-neutral-400'}`}>
                   {step.label}
                 </p>
-                {step.done && (
-                  <p className="text-xs text-green-600">Terminé</p>
-                )}
+                {step.done && <p className="text-xs text-green-600">Terminé</p>}
               </div>
             </div>
           ))}
         </div>
 
-        {/* Progress bar */}
         {isProcessing && (
           <div className="mt-6 space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium text-neutral-700">
-                {totalPages > 0
-                  ? `Analyse documentaire — ${processedPages + failedPages} / ${totalPages} pages`
-                  : 'Initialisation...'}
+                {progressPercent < 15 ? 'Initialisation...' :
+                 progressPercent < 25 ? 'Téléchargement du PDF...' :
+                 progressPercent < 30 ? 'Envoi à OpenAI...' :
+                 progressPercent < 80 ? 'Analyse IA en cours...' :
+                 progressPercent < 90 ? 'Extraction des blocs...' :
+                 'Finalisation...'}
               </span>
               <span className="text-neutral-500">{progressPercent}%</span>
             </div>
@@ -290,20 +270,10 @@ export default function ImportJobPage() {
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
-            {totalPages > 0 && (
-              <div className="flex items-center gap-4 text-xs text-neutral-400">
-                <span>Page en cours: {currentPage} / {totalPages}</span>
-                {failedPages > 0 && <span className="text-red-500">{failedPages} page(s) en échec</span>}
-              </div>
-            )}
+            <p className="text-xs text-neutral-400">
+              L'analyse est traitée en arrière-plan. Cette page se met à jour automatiquement toutes les 3 secondes.
+            </p>
           </div>
-        )}
-
-        {isProcessing && (
-          <p className="mt-6 text-xs text-neutral-400">
-            L'analyse documentaire est en cours. Le rendu PDF et l'analyse IA sont traités en arrière-plan.
-            Cette page se met à jour automatiquement.
-          </p>
         )}
 
         {job.status === 'needs_review' && (

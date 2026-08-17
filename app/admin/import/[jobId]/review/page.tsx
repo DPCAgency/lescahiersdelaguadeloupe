@@ -193,12 +193,7 @@ export default function ImportReviewPage() {
 
   useEffect(() => {
     async function loadPageImage() {
-      if (!job?.metadata_json?.rendered_pages) {
-        setPageImageUrl(null);
-        return;
-      }
-      const rendered = job.metadata_json.rendered_pages.find((r) => r.pageNumber === currentPage);
-      if (!rendered) {
+      if (!job?.source_file_path) {
         setPageImageUrl(null);
         return;
       }
@@ -210,7 +205,7 @@ export default function ImportReviewPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
           },
-          body: JSON.stringify({ path: rendered.preview }),
+          body: JSON.stringify({ path: job.source_file_path }),
         });
         if (resp.ok) {
           const blob = await resp.blob();
@@ -224,7 +219,7 @@ export default function ImportReviewPage() {
       setImageLoading(false);
     }
     loadPageImage();
-  }, [job, currentPage]);
+  }, [job?.source_file_path]);
 
   const openCropModal = useCallback(async (block: ExtractedBlock) => {
     setCropModal({ blockId: block.id, pageNum: block.page_number });
@@ -232,27 +227,6 @@ export default function ImportReviewPage() {
       setCropBox(block.bounding_box_json);
     } else {
       setCropBox({ x: 0.1, y: 0.1, width: 0.5, height: 0.5 });
-    }
-    if (job?.metadata_json?.rendered_pages) {
-      const rendered = job.metadata_json.rendered_pages.find((r) => r.pageNumber === block.page_number);
-      if (rendered) {
-        try {
-          const resp = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/storage-admin?action=download`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-            },
-            body: JSON.stringify({ path: rendered.full }),
-          });
-          if (resp.ok) {
-            const blob = await resp.blob();
-            setCropFullImageUrl(URL.createObjectURL(blob));
-          }
-        } catch {
-          // ignore
-        }
-      }
     }
   }, [job]);
 
@@ -790,56 +764,11 @@ export default function ImportReviewPage() {
               )}
               {pageImageUrl && !imageLoading && (
                 <div className="relative inline-block">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <iframe
                     src={pageImageUrl}
-                    alt={`Page ${currentPage}`}
-                    className="max-h-[600px] rounded border border-neutral-200 shadow-sm"
+                    title={`Page ${currentPage}`}
+                    className="h-[600px] w-full rounded border border-neutral-200 shadow-sm"
                   />
-                  {/* Bounding box overlays */}
-                  {pageBlocks.map((block) => {
-                    const box = block.bounding_box_json;
-                    if (!box) return null;
-                    const isSelected = block.id === selectedBlockId;
-                    const isHovered = block.id === hoveredBlockId;
-                    return (
-                      <div
-                        key={block.id}
-                        onClick={() => {
-                          if (mergeMode) {
-                            setMergeSelection((prev) => prev.includes(block.id) ? prev.filter((id) => id !== block.id) : [...prev, block.id]);
-                          } else {
-                            setSelectedBlockId(block.id);
-                          }
-                        }}
-                        onMouseEnter={() => setHoveredBlockId(block.id)}
-                        onMouseLeave={() => setHoveredBlockId(null)}
-                        className={`absolute cursor-pointer border-2 transition-colors ${
-                          isSelected
-                            ? 'border-cyan-500 bg-cyan-500/20'
-                            : isHovered
-                            ? 'border-cyan-400 bg-cyan-400/10'
-                            : mergeSelection.includes(block.id)
-                            ? 'border-ink bg-ink/20'
-                            : block.status === 'validated'
-                            ? 'border-green-300 bg-green-300/10'
-                            : block.status === 'ignored'
-                            ? 'border-neutral-200 bg-neutral-100/50'
-                            : 'border-neutral-300 bg-transparent hover:border-cyan-300'
-                        }`}
-                        style={{
-                          left: `${box.x * 100}%`,
-                          top: `${box.y * 100}%`,
-                          width: `${box.width * 100}%`,
-                          height: `${box.height * 100}%`,
-                        }}
-                      >
-                        <span className="text-[8px] leading-tight text-neutral-600 overflow-hidden block h-full">
-                          {block.type === 'image' ? '[img]' : ''}
-                        </span>
-                      </div>
-                    );
-                  })}
                 </div>
               )}
               {!pageImageUrl && !imageLoading && (
