@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Plus, BookOpen } from 'lucide-react';
+import { Plus, BookOpen, Edit3 } from 'lucide-react';
 import { supabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -12,8 +12,18 @@ export default async function AdminCahiersPage() {
 
   const statusColors: Record<string, string> = {
     draft: 'bg-neutral-100 text-neutral-600',
+    ready: 'bg-blue-100 text-blue-700',
+    scheduled: 'bg-amber-100 text-amber-700',
     published: 'bg-green-100 text-green-700',
     archived: 'bg-neutral-200 text-neutral-500',
+  };
+
+  const statusLabels: Record<string, string> = {
+    draft: 'Brouillon',
+    ready: 'Prêt',
+    scheduled: 'Programmé',
+    published: 'Publié',
+    archived: 'Archivé',
   };
 
   return (
@@ -52,6 +62,9 @@ export default async function AdminCahiersPage() {
                 <td colSpan={8} className="px-4 py-12 text-center">
                   <BookOpen className="mx-auto h-8 w-8 text-neutral-300" strokeWidth={1.5} />
                   <p className="mt-2 text-sm text-neutral-400">Aucun Cahier pour le moment.</p>
+                  <Link href="/admin/cahiers/new" className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-ink hover:underline">
+                    <Plus className="h-3.5 w-3.5" /> Créer un Cahier
+                  </Link>
                 </td>
               </tr>
             )}
@@ -59,7 +72,7 @@ export default async function AdminCahiersPage() {
               <tr key={issue.id} className="hover:bg-neutral-50">
                 <td className="px-4 py-3 text-sm font-bold text-neutral-800">N°{issue.issue_number}</td>
                 <td className="px-4 py-3">
-                  <Link href={`/admin/cahiers/${issue.id}`} className="text-sm font-medium text-neutral-800 hover:text-ink">
+                  <Link href={`/admin/cahiers/${issue.id}/edit`} className="text-sm font-medium text-neutral-800 hover:text-ink">
                     {issue.title}
                   </Link>
                 </td>
@@ -68,16 +81,21 @@ export default async function AdminCahiersPage() {
                 </td>
                 <td className="px-4 py-3">
                   <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[issue.status] ?? ''}`}>
-                    {issue.status === 'published' ? 'Publié' : issue.status === 'draft' ? 'Brouillon' : 'Archivé'}
+                    {statusLabels[issue.status] ?? issue.status}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-neutral-500">{issue.page_count}</td>
                 <td className="px-4 py-3 text-sm text-neutral-500">{issue.price_per_page} €</td>
                 <td className="px-4 py-3 text-sm text-neutral-500">{issue.full_download_price} €</td>
                 <td className="px-4 py-3">
-                  <Link href={`/admin/cahiers/${issue.id}`} className="text-xs font-medium text-ink hover:underline">
-                    Modifier
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link href={`/admin/cahiers/${issue.id}/edit`} className="flex items-center gap-1 text-xs font-medium text-ink hover:underline">
+                      <Edit3 className="h-3 w-3" /> Studio
+                    </Link>
+                    <Link href={`/admin/cahiers/${issue.id}`} className="text-xs font-medium text-neutral-400 hover:text-neutral-600">
+                      Paramètres
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}
