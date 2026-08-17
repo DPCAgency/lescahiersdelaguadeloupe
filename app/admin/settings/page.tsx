@@ -137,16 +137,21 @@ export default function AdminSettingsPage() {
 
         <div className="rounded-lg border border-neutral-200 bg-white p-5 space-y-4">
           <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Fonctionnalités</h3>
-          <p className="text-xs text-neutral-400">Activez ou désactivez les fonctionnalités du site. Les abonnements restent désactivés tant que Stripe n&apos;est pas connecté.</p>
+          <p className="text-xs text-neutral-400">Activez ou désactivez les fonctionnalités du site. Pour la V1, les paiements et l'import IA sont désactivés.</p>
           {featureFlags.map((flag) => (
             <label key={flag.key} className="flex items-center justify-between rounded-lg border border-neutral-100 px-4 py-3">
               <span className="text-sm font-medium text-neutral-700">{flag.label}</span>
-              <button
-                onClick={() => setFlags((prev) => ({ ...prev, [flag.key]: !prev[flag.key] }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${flags[flag.key] ? 'bg-ink' : 'bg-neutral-300'}`}
-              >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${flags[flag.key] ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
+              <div className="flex items-center gap-2">
+                {!flags[flag.key] && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-red-500">Désactivé</span>
+                )}
+                <button
+                  onClick={() => setFlags((prev) => ({ ...prev, [flag.key]: !prev[flag.key] }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${flags[flag.key] ? 'bg-ink' : 'bg-neutral-300'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${flags[flag.key] ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
             </label>
           ))}
           <div className="rounded-lg bg-amber-50 border border-amber-200 p-3">

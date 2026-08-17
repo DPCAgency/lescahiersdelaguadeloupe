@@ -72,6 +72,7 @@ export default function AdminImportPage() {
   const router = useRouter();
   const [jobs, setJobs] = useState<ImportJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [aiImportEnabled, setAiImportEnabled] = useState(true);
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [fileErrors, setFileErrors] = useState<Record<string, string | null>>({});
@@ -91,7 +92,15 @@ export default function AdminImportPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { loadJobs(); }, [loadJobs]);
+  useEffect(() => {
+    loadJobs();
+    fetch('/api/admin/settings', { credentials: 'same-origin' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.flags) setAiImportEnabled(Boolean(data.flags.ai_import_enabled));
+      })
+      .catch(() => {});
+  }, [loadJobs]);
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList) return;
@@ -219,6 +228,22 @@ export default function AdminImportPage() {
         </p>
       </div>
 
+      {!aiImportEnabled && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+            <div>
+              <h3 className="text-sm font-semibold text-amber-800">BÊTA — Temporairement désactivé</h3>
+              <p className="mt-1 text-sm text-amber-700">
+                L'import intelligent IA est temporairement désactivé pour cette version. Cette fonctionnalité sera prochainement disponible.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {aiImportEnabled && (
+        <>
       {/* Upload zone */}
       <div
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -324,9 +349,11 @@ export default function AdminImportPage() {
           </div>
         )}
       </div>
+        </>
+      )}
 
       {/* Provider test */}
-      <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3">
+      <div className={`flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 ${!aiImportEnabled ? 'opacity-50 pointer-events-none' : ''}`}>
         <Activity className="h-4 w-4 text-neutral-400" />
         <div className="flex-1">
           <p className="text-sm font-medium text-neutral-600">Service d'analyse documentaire</p>

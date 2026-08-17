@@ -37,6 +37,7 @@ interface IssueReaderClientProps {
   isAdmin: boolean;
   hasFullIssue: boolean;
   purchasedPages: number[];
+  paymentsEnabled: boolean;
 }
 
 const ZOOM_LEVELS = [50, 75, 100, 125, 150, 200];
@@ -49,6 +50,7 @@ export function IssueReaderClient({
   isAdmin,
   hasFullIssue: initialHasFullIssue,
   purchasedPages: initialPurchasedPages,
+  paymentsEnabled,
 }: IssueReaderClientProps) {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [zoom, setZoom] = useState(100);
@@ -68,12 +70,13 @@ export function IssueReaderClient({
 
   const canAccess = useCallback((page: ReaderPage) => {
     if (!page) return false;
+    if (!paymentsEnabled) return true;
     if (isAdmin) return true;
     if (page.isFree) return true;
     if (hasFullIssue) return true;
     if (purchasedPages.has(page.pageNumber)) return true;
     return false;
-  }, [isAdmin, hasFullIssue, purchasedPages]);
+  }, [paymentsEnabled, isAdmin, hasFullIssue, purchasedPages]);
 
   const loadPageImage = useCallback(async (pageIndex: number) => {
     const page = pages[pageIndex];
@@ -185,6 +188,7 @@ export function IssueReaderClient({
   };
 
   const handleBuyFull = () => {
+    if (!paymentsEnabled) return;
     window.location.href = '/les-cahiers/numero-02/acheter';
   };
 
@@ -301,11 +305,21 @@ export function IssueReaderClient({
             </div>
           </div>
         ) : (
-          <Paywall
-            issue={issue}
-            page={currentPage}
-            onBuyFull={handleBuyFull}
-          />
+          paymentsEnabled ? (
+            <Paywall
+              issue={issue}
+              page={currentPage}
+              onBuyFull={handleBuyFull}
+            />
+          ) : (
+            <div className="flex w-full max-w-md flex-col items-center px-6 py-16">
+              <div className="w-full border border-border bg-background p-8">
+                <p className="text-[14px] leading-relaxed text-text">
+                  Cette page n'est pas encore disponible.
+                </p>
+              </div>
+            </div>
+          )
         )}
       </div>
 

@@ -6,7 +6,8 @@ export const metadata = {
   description: 'Accédez à vos Cahiers.',
 };
 
-export default function Page() {
+export default async function Page({ searchParams }: { searchParams: { redirect?: string } }) {
+  const redirect = searchParams.redirect || '';
   return (
     <section className="flex min-h-[70vh] items-center">
       <div className="container-narrow py-16">
@@ -17,6 +18,9 @@ export default function Page() {
           </h1>
 
           <form className="mt-8 flex flex-col gap-5" action="/api/auth/signin" method="post">
+            {redirect && (
+              <input type="hidden" name="redirect" value={redirect} />
+            )}
             <div className="flex flex-col gap-2">
               <label htmlFor="email" className="eyebrow-muted">
                 Email

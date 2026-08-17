@@ -133,6 +133,13 @@ export default async function ReaderPage({
     }
   }
 
+  const paymentsEnabled = Boolean(flags.subscriptions_enabled) || Boolean(flags.page_purchase_enabled) || Boolean(flags.full_issue_purchase_enabled);
+
+  // When payments are disabled (V1 free mode), grant access to all published content
+  if (!paymentsEnabled) {
+    hasFullIssue = true;
+  }
+
   // Apply preview overrides
   if (previewAsBuyer) {
     hasFullIssue = true;
@@ -162,6 +169,7 @@ export default async function ReaderPage({
       isAdmin={isAdmin}
       hasFullIssue={hasFullIssue}
       purchasedPages={purchasedPages}
+      paymentsEnabled={paymentsEnabled}
     />
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface AdminGuardProps {
   children: ReactNode;
@@ -11,6 +11,7 @@ const ADMIN_ROLES = new Set(['editor', 'admin', 'super_admin']);
 
 export function AdminGuard({ children }: AdminGuardProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [status, setStatus] = useState<'loading' | 'authorized' | 'unauthorized'>('loading');
 
   useEffect(() => {
@@ -19,7 +20,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
         const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
         if (!resp.ok) {
           setStatus('unauthorized');
-          router.replace('/connexion?redirect=/admin');
+          router.replace(`/connexion?redirect=${encodeURIComponent(pathname)}`);
           return;
         }
 
@@ -33,10 +34,10 @@ export function AdminGuard({ children }: AdminGuardProps) {
         }
       } catch {
         setStatus('unauthorized');
-        router.replace('/connexion?redirect=/admin');
+        router.replace(`/connexion?redirect=${encodeURIComponent(pathname)}`);
       }
     })();
-  }, [router]);
+  }, [router, pathname]);
 
   if (status === 'loading') {
     return (

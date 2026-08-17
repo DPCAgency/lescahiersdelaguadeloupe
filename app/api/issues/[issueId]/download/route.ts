@@ -32,17 +32,38 @@ export async function GET(
 
   const isAdmin = profile && ['editor', 'admin', 'super_admin'].includes(profile.role);
 
-  if (!isAdmin) {
-    const { data: flags } = await supabaseAdmin
-      .from('feature_flags')
-      .select('key, value')
-      .eq('key', 'pdf_download_enabled')
+  // Fetch all feature flags
+  const { data: allFlags } = await supabaseAdmin
+    .from('feature_flags')
+    .select('key, value');
+
+  const flagMap: Record<string, boolean> = {};
+  for (const f of allFlags ?? []) {
+    flagMap[f.key] = f.value;
+  }
+
+  const paymentsEnabled = Boolean(flagMap.subscriptions_enabled) || Boolean(flagMap.page_purchase_enabled) || Boolean(flagMap.full_issue_purchase_enabled);
+
+  // If PDF download is disabled by flag, block
+  if (!flagMap.pdf_download_enabled) {
+    return NextResponse.json({ error: 'Téléchargement non disponible' }, { status: 403 });
+  }
+
+  // When payments are disabled (V1 free mode), allow download of published issues
+  if (!paymentsEnabled) {
+    // Still verify the issue is published
+    const { data: issueCheck } = await supabaseAdmin
+      .from('issues')
+      .select('status')
+      .eq('id', issueId)
       .maybeSingle();
 
-    if (flags && !flags.value) {
-      return NextResponse.json({ error: 'Téléchargement non disponible' }, { status: 403 });
+    if (!issueCheck || issueCheck.status !== 'published') {
+      return NextResponse.json({ error: 'Cahier non disponible' }, { status: 404 });
     }
-
+    // Allow download — fall through to file retrieval below
+  } else if (!isAdmin) {
+    // Payments enabled: check entitlement
     const { data: entitlement } = await supabaseAdmin
       .from('entitlements')
       .select('id')

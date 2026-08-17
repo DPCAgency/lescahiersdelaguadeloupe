@@ -13,7 +13,7 @@ export async function middleware(req: NextRequest) {
   const token = req.cookies.get('sb-access-token')?.value;
 
   if (!token) {
-    return NextResponse.redirect(new URL('/connexion?redirect=/admin', req.url));
+    return NextResponse.redirect(new URL(`/connexion?redirect=${encodeURIComponent(pathname)}`, req.url));
   }
 
   try {
@@ -31,7 +31,10 @@ export async function middleware(req: NextRequest) {
     // fetch failed
   }
 
-  return NextResponse.redirect(new URL('/connexion?redirect=/admin', req.url));
+  const response = NextResponse.redirect(new URL(`/connexion?redirect=${encodeURIComponent(pathname)}`, req.url));
+  response.cookies.delete('sb-access-token');
+  response.cookies.delete('sb-refresh-token');
+  return response;
 }
 
 export const config = {
