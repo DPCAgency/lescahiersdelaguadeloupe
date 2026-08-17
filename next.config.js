@@ -5,7 +5,7 @@ const nextConfig = {
   },
   experimental: {
     cpus: 1,
-    serverComponentsExternalPackages: ['pdfjs-dist', 'canvas'],
+    serverComponentsExternalPackages: ['mupdf', 'canvas'],
   },
   images: {
     unoptimized: true,

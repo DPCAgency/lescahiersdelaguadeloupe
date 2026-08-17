@@ -2,5 +2,11 @@
 command = "rm -rf .next node_modules/.cache && npx next build"
 publish = ".next"
 
+[functions]
+included_files = [
+  "node_modules/mupdf/dist/**",
+  "node_modules/canvas/**"
+]
+
 [[plugins]]
 package = "@netlify/plugin-nextjs"
