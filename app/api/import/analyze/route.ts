@@ -147,8 +147,16 @@ export async function POST(req: NextRequest) {
           });
 
           if (!resp.ok) {
-            const errBody = await resp.json() as { error?: string };
-            throw new Error(`Storage upload failed: ${errBody.error ?? resp.status}`);
+            let errMsg = `Storage upload failed: ${resp.status}`;
+            const ct = resp.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+              const errBody = await resp.json() as { error?: string };
+              errMsg = `Storage upload failed: ${errBody.error ?? resp.status}`;
+            } else {
+              const text = await resp.text();
+              errMsg = `Storage upload failed (${resp.status}): ${text.slice(0, 200)}`;
+            }
+            throw new Error(errMsg);
           }
         },
       };

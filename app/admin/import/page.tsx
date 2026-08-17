@@ -13,6 +13,7 @@ import {
   ACCEPTED_EXTENSIONS,
   formatFileSize,
 } from '@/lib/imports/constants';
+import { safeJsonFetch } from '@/lib/utils/safe-fetch';
 
 interface ImportJob {
   id: string;
@@ -80,10 +81,9 @@ export default function AdminImportPage() {
 
   const loadJobs = useCallback(async () => {
     try {
-      const resp = await fetch('/api/import/jobs', { credentials: 'same-origin' });
-      if (resp.ok) {
-        const data = await resp.json() as ImportJob[];
-        setJobs(data);
+      const result = await safeJsonFetch('/api/import/jobs', { credentials: 'same-origin' });
+      if (result.ok) {
+        setJobs(result.data as ImportJob[]);
       }
     } catch {
       // ignore
@@ -202,8 +202,8 @@ export default function AdminImportPage() {
   const testProvider = async () => {
     setProviderTest({ status: 'testing', available: false, message: '' });
     try {
-      const resp = await fetch('/api/import/test-provider', { method: 'POST' });
-      const data = await resp.json() as { available: boolean; message: string };
+      const result = await safeJsonFetch('/api/import/test-provider', { method: 'POST' });
+      const data = result.data as { available: boolean; message: string };
       setProviderTest({ status: 'done', available: data.available, message: data.message });
     } catch {
       setProviderTest({ status: 'done', available: false, message: 'Service indisponible — erreur de connexion' });

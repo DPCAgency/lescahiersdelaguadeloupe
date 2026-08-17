@@ -195,6 +195,12 @@ export class OpenAIVisionProvider implements DocumentAnalysisProvider {
       throw new Error(`OpenAI Vision error (${resp.status}): ${errText.slice(0, 300)}`);
     }
 
+    const contentType = resp.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await resp.text();
+      throw new Error(`OpenAI Vision: réponse non-JSON (${resp.status}): ${text.slice(0, 300)}`);
+    }
+
     const data = await resp.json() as OpenAIPageResult;
     return data;
   }

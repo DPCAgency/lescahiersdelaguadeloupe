@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Loader2, ArrowLeft, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { formatFileSize } from '@/lib/imports/constants';
+import { safeJsonFetch } from '@/lib/utils/safe-fetch';
 
 interface ImportJob {
   id: string;
@@ -51,33 +52,32 @@ export default function ImportJobPage() {
     console.log('[IMPORT DEBUG]', { jobId, pathname: window.location.pathname });
     setDebugInfo(`JOB ID: ${jobId}`);
     try {
-      const resp = await fetch(`/api/import/jobs/${jobId}`, { credentials: 'same-origin' });
-      setDebugInfo(prev => `${prev} | API STATUS: ${resp.status}`);
+      const result = await safeJsonFetch(`/api/import/jobs/${jobId}`, { credentials: 'same-origin' });
+      setDebugInfo(prev => `${prev} | API STATUS: ${result.status}`);
 
-      if (resp.status === 401) {
+      if (result.status === 401) {
         setLoadError('session');
         setLoading(false);
         return;
       }
-      if (resp.status === 403) {
+      if (result.status === 403) {
         setLoadError('forbidden');
         setLoading(false);
         return;
       }
-      if (resp.status === 404) {
+      if (result.status === 404) {
         setLoadError('not_found');
         setLoading(false);
         return;
       }
-      if (!resp.ok) {
-        const errBody = await resp.text();
-        setDebugInfo(prev => `${prev} | API RESPONSE: ${errBody.slice(0, 200)}`);
+      if (!result.ok) {
+        setDebugInfo(prev => `${prev} | API ERROR: ${result.error ?? 'unknown'}`);
         setLoadError('server');
         setLoading(false);
         return;
       }
 
-      const data = await resp.json() as ImportJob;
+      const data = result.data as ImportJob;
       setDebugInfo(prev => `${prev} | JOB FOUND: ${data.id} status=${data.status}`);
       setJob(data);
       setLoading(false);
@@ -110,15 +110,19 @@ export default function ImportJobPage() {
     updateStep(3, 'active', 20);
 
     try {
-      const resp = await fetch('/api/import/analyze', {
+      const result = await safeJsonFetch('/api/import/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId }),
       });
 
-      const data = await resp.json() as { success?: boolean; error?: string; mode?: string };
+      if (!result.ok) {
+        throw new Error(result.error ?? `Échec de l'analyse (HTTP ${result.status})`);
+      }
 
-      if (!resp.ok || !data.success) {
+      const data = result.data as { success?: boolean; error?: string; mode?: string };
+
+      if (!data.success) {
         throw new Error(data.error ?? 'Échec de l\'analyse');
       }
 

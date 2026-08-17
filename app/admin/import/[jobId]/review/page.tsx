@@ -25,6 +25,7 @@ import {
   Split,
   Crop,
 } from 'lucide-react';
+import { safeJsonFetch } from '@/lib/utils/safe-fetch';
 
 interface BoundingBox {
   x: number;
@@ -148,15 +149,14 @@ export default function ImportReviewPage() {
 
   const load = useCallback(async () => {
     try {
-      const jobResp = await fetch(`/api/import/jobs/${jobId}`, { credentials: 'same-origin' });
-      if (jobResp.ok) {
-        const jobData = await jobResp.json() as ImportJob;
-        setJob(jobData);
+      const jobResult = await safeJsonFetch(`/api/import/jobs/${jobId}`, { credentials: 'same-origin' });
+      if (jobResult.ok) {
+        setJob(jobResult.data as ImportJob);
       }
 
-      const reviewResp = await fetch(`/api/import/jobs/${jobId}/review`, { credentials: 'same-origin' });
-      if (reviewResp.ok) {
-        const reviewData = await reviewResp.json() as {
+      const reviewResult = await safeJsonFetch(`/api/import/jobs/${jobId}/review`, { credentials: 'same-origin' });
+      if (reviewResult.ok) {
+        const reviewData = reviewResult.data as {
           blocks: ExtractedBlock[];
           suggestions: ArticleSuggestion[];
           issues: { id: string; title: string; issue_number: string }[];
@@ -260,13 +260,13 @@ export default function ImportReviewPage() {
     if (!cropModal) return;
     setCropSaving(true);
     try {
-      const resp = await fetch('/api/import/recrop', {
+      const result = await safeJsonFetch('/api/import/recrop', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId, blockId: cropModal.blockId, boundingBox: cropBox }),
       });
-      const data = await resp.json() as { success?: boolean; error?: string };
-      if (!resp.ok || !data.success) throw new Error(data.error ?? 'Erreur');
+      const data = result.data as { success?: boolean; error?: string };
+      if (!result.ok || !data.success) throw new Error(data.error ?? result.error ?? 'Erreur');
       setBlocks((prev) => prev.map((b) => b.id === cropModal.blockId ? { ...b, bounding_box_json: cropBox, status: 'modified' } as ExtractedBlock : b));
       setCropModal(null);
       setCropFullImageUrl(null);
@@ -449,7 +449,7 @@ export default function ImportReviewPage() {
       edited_text: part1,
       type: editType,
     });
-    const blockResp = await fetch('/api/import/blocks', {
+    const blockResult = await safeJsonFetch('/api/import/blocks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
@@ -467,7 +467,7 @@ export default function ImportReviewPage() {
         },
       }),
     });
-    const blockData = await blockResp.json() as { success?: boolean; block?: { id: string }; error?: string };
+    const blockData = blockResult.data as { success?: boolean; block?: { id: string }; error?: string };
     if (blockData.success && blockData.block) {
       setBlocks((prev) => {
         const idx = prev.findIndex((b) => b.id === selectedBlock.id);
@@ -497,7 +497,7 @@ export default function ImportReviewPage() {
     }
     setCreatingArticles(true);
     try {
-      const resp = await fetch('/api/import/create-articles', {
+      const result = await safeJsonFetch('/api/import/create-articles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -514,9 +514,9 @@ export default function ImportReviewPage() {
           })),
         }),
       });
-      const data = await resp.json() as { success?: boolean; error?: string; created?: { articleId: string; title: string }[] };
-      if (!resp.ok || !data.success) {
-        throw new Error(data.error ?? 'Erreur');
+      const data = result.data as { success?: boolean; error?: string; created?: { articleId: string; title: string }[] };
+      if (!result.ok || !data.success) {
+        throw new Error(data.error ?? result.error ?? 'Erreur');
       }
       alert(`${data.created?.length ?? 0} article(s) brouillon(s) créé(s). Vous pouvez les éditer dans /admin/articles.`);
       router.push('/admin/articles');
