@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Palette éditoriale — Les Cahiers de la Guadeloupe */
+    --primary: 188 74% 34%; /* turquoise / bleu pétrole #14879A */
+    --primary-dark: 188 83% 24%; /* #0B6373 */
+    --primary-light: 184 43% 95%; /* #EAF6F7 */
+
+    --ink: 0 0% 7%; /* #111111 */
+    --text: 0 0% 14%; /* #242424 */
+    --muted: 0 0% 40%; /* #666666 */
+
+    --background: 0 0% 100%; /* #FFFFFF */
+    --background-soft: 40 12% 96%; /* #F5F5F2 */
+    --border: 40 9% 84%; /* #D7D7D2 */
+
+    --white: 0 0% 100%;
+
+    /* Charte shadcn (alias) */
+    --foreground: 0 0% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 7%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 12% 96%;
+    --secondary-foreground: 0 0% 7%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 184 43% 95%;
+    --accent-foreground: 188 74% 24%;
+    --destructive: 0 72% 42%;
+    --destructive-foreground: 0 0% 100%;
+    --input: 40 9% 84%;
+    --ring: 188 74% 34%;
+    --radius: 0.125rem;
+
+    --chart-1: 188 74% 34%;
+    --chart-2: 0 0% 7%;
+    --chart-3: 40 9% 55%;
+    --chart-4: 184 43% 80%;
+    --chart-5: 0 0% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-ink;
+    font-feature-settings: "ss01", "cv01", "cv11";
+  }
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
+    color: hsl(var(--ink));
+  }
+}
+
+@layer components {
+  .container-editorial {
+    @apply mx-auto w-full max-w-[1440px] px-5 sm:px-8 lg:px-12;
+  }
+  .container-narrow {
+    @apply mx-auto w-full max-w-[680px] px-5 sm:px-8;
+  }
+  .container-wide {
+    @apply mx-auto w-full max-w-[1760px] px-5 sm:px-8 lg:px-12;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.28em] text-primary;
+  }
+  .eyebrow-ink {
+    @apply text-[11px] font-semibold uppercase tracking-[0.28em] text-ink;
+  }
+  .eyebrow-muted {
+    @apply text-[11px] font-semibold uppercase tracking-[0.28em] text-muted;
+  }
+
+  .display-title {
+    @apply font-display font-bold uppercase leading-[0.92] tracking-[-0.01em] text-ink;
+  }
+  .section-title {
+    @apply font-display font-bold uppercase leading-[0.95] tracking-[-0.01em] text-ink;
+  }
+  .article-title {
+    @apply font-display font-semibold leading-[1.04] tracking-[-0.01em] text-ink;
+  }
+
+  .body-prose {
+    @apply font-body text-[17px] leading-[1.7] text-text;
+  }
+  .body-prose p + p {
+    @apply mt-5;
+  }
+
+  .rule {
+    @apply h-px w-full bg-border;
+  }
+  .rule-ink {
+    @apply h-px w-full bg-ink;
+  }
+  .rule-primary {
+    @apply h-px w-full bg-primary;
+  }
+
+  .link-underline {
+    @apply relative inline-flex items-center text-ink transition-colors hover:text-primary;
+  }
+  .link-underline::after {
+    content: "";
+    @apply absolute -bottom-0.5 left-0 h-px w-0 bg-primary transition-all duration-300;
+  }
+  .link-underline:hover::after {
+    @apply w-full;
+  }
+
+  .btn-editorial {
+    @apply inline-flex items-center justify-center gap-2 border border-ink bg-ink px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.18em] text-white transition-all hover:bg-primary hover:border-primary;
+  }
+  .btn-editorial-outline {
+    @apply inline-flex items-center justify-center gap-2 border border-ink bg-transparent px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.18em] text-ink transition-all hover:bg-ink hover:text-white;
+  }
+
+  .tag-fact {
+    @apply inline-flex items-center gap-1.5 border-l-2 border-ink bg-background-soft px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-ink;
+  }
+  .tag-document {
+    @apply inline-flex items-center gap-1.5 border-l-2 border-primary bg-primary-light px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary-dark;
+  }
+  .tag-testimony {
+    @apply inline-flex items-center gap-1.5 border-l-2 border-[#8a6d3b] bg-[#f7f2e8] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#6b5226];
+  }
+  .tag-analysis {
+    @apply inline-flex items-center gap-1.5 border-l-2 border-muted bg-background-soft px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted;
+  }
+  .tag-question {
+    @apply inline-flex items-center gap-1.5 border-l-2 border-primary bg-background px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-primary;
+  }
+  .tag-hypothesis {
+    @apply inline-flex items-center gap-1.5 border-l-2 border-dashed border-muted bg-background-soft px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fade-up {
+  animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out both;
+}
+.animate-count-up {
+  animation: count-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
