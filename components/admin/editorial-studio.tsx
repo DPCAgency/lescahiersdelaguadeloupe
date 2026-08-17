@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
+
 import {
   Loader2, ArrowLeft, Save, Plus, Trash2, ChevronUp, ChevronDown,
   Type, AlignLeft, Image as ImageIcon, Quote, BarChart3, Minus,
@@ -87,42 +87,43 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
-    const { data: issueData } = await supabase.from('issues').select('*').eq('id', issueId).maybeSingle();
-    if (issueData) {
-      setIssue({
-        id: issueData.id,
-        issue_number: issueData.issue_number ?? '',
-        title: issueData.title ?? '',
-        subtitle: issueData.subtitle ?? '',
-        description: issueData.description ?? '',
-        publication_date: issueData.publication_date ?? '',
-        cover_image_path: issueData.cover_image_path ?? '',
-        page_count: issueData.page_count ?? 1,
-        status: issueData.status ?? 'draft',
-        price_per_page: issueData.price_per_page?.toString() ?? '0.30',
-        full_download_price: issueData.full_download_price?.toString() ?? '2.90',
-        theme: issueData.theme ?? '',
-        editorial_director: issueData.editorial_director ?? '',
-        free_pages_count: issueData.free_pages_count ?? 1,
-        download_enabled: issueData.download_enabled ?? true,
-      });
+    try {
+      const issueResp = await fetch(`/api/admin/issues/${issueId}`, { credentials: 'same-origin' });
+      if (issueResp.ok) {
+        const issueData = await issueResp.json();
+        setIssue({
+          id: issueData.id,
+          issue_number: issueData.issue_number ?? '',
+          title: issueData.title ?? '',
+          subtitle: issueData.subtitle ?? '',
+          description: issueData.description ?? '',
+          publication_date: issueData.publication_date ?? '',
+          cover_image_path: issueData.cover_image_path ?? '',
+          page_count: issueData.page_count ?? 1,
+          status: issueData.status ?? 'draft',
+          price_per_page: issueData.price_per_page?.toString() ?? '0.30',
+          full_download_price: issueData.full_download_price?.toString() ?? '2.90',
+          theme: issueData.theme ?? '',
+          editorial_director: issueData.editorial_director ?? '',
+          free_pages_count: issueData.free_pages_count ?? 1,
+          download_enabled: issueData.download_enabled ?? true,
+        });
+      }
+
+      const blocksResp = await fetch(`/api/admin/issues/${issueId}/blocks`, { credentials: 'same-origin' });
+      if (blocksResp.ok) {
+        const blockData = await blocksResp.json();
+        setBlocks((blockData as Array<Record<string, unknown>>).map((b) => ({
+          id: b.id as string,
+          page_number: b.page_number as number,
+          block_type: b.block_type as string,
+          position: b.position as number,
+          content_json: (b.content_json ?? {}) as PageBlock['content_json'],
+        })));
+      }
+    } catch (err) {
+      console.error('Load error:', err);
     }
-
-    const { data: blockData } = await supabase
-      .from('page_blocks')
-      .select('*')
-      .eq('issue_id', issueId)
-      .order('page_number', { ascending: true })
-      .order('position', { ascending: true });
-
-    setBlocks((blockData ?? []).map((b) => ({
-      id: b.id,
-      page_number: b.page_number,
-      block_type: b.block_type,
-      position: b.position,
-      content_json: b.content_json ?? {},
-    })));
-
     setLoading(false);
   }, [issueId]);
 
@@ -209,41 +210,56 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
     if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
 
     try {
-      await supabase.from('issues').update({
-        title: issue.title || 'Sans titre',
-        subtitle: issue.subtitle || null,
-        description: issue.description || null,
-        publication_date: issue.publication_date || null,
-        cover_image_path: issue.cover_image_path || null,
-        page_count: issue.page_count,
-        status: issue.status,
-        price_per_page: parseFloat(issue.price_per_page) || 0.30,
-        full_download_price: parseFloat(issue.full_download_price) || 2.90,
-        theme: issue.theme || null,
-        editorial_director: issue.editorial_director || null,
-        free_pages_count: issue.free_pages_count,
-        download_enabled: issue.download_enabled,
-      }).eq('id', issueId);
+      await fetch(`/api/admin/issues/${issueId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          title: issue.title || 'Sans titre',
+          subtitle: issue.subtitle || null,
+          description: issue.description || null,
+          publication_date: issue.publication_date || null,
+          cover_image_path: issue.cover_image_path || null,
+          page_count: issue.page_count,
+          status: issue.status,
+          price_per_page: parseFloat(issue.price_per_page) || 0.30,
+          full_download_price: parseFloat(issue.full_download_price) || 2.90,
+          theme: issue.theme || null,
+          editorial_director: issue.editorial_director || null,
+          free_pages_count: issue.free_pages_count,
+          download_enabled: issue.download_enabled,
+        }),
+      });
 
       for (const block of blocks) {
         if (block.id.startsWith('temp-')) {
-          const { data: newBlock } = await supabase.from('page_blocks').insert({
-            issue_id: issueId,
-            page_number: block.page_number,
-            block_type: block.block_type,
-            position: block.position,
-            content_json: block.content_json,
-          }).select('id').single();
-          if (newBlock) {
+          const resp = await fetch(`/api/admin/issues/${issueId}/blocks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              page_number: block.page_number,
+              block_type: block.block_type,
+              position: block.position,
+              content_json: block.content_json,
+            }),
+          });
+          if (resp.ok) {
+            const newBlock = await resp.json();
             setBlocks((prev) => prev.map((b) => b.id === block.id ? { ...b, id: newBlock.id } : b));
           }
         } else {
-          await supabase.from('page_blocks').update({
-            page_number: block.page_number,
-            block_type: block.block_type,
-            position: block.position,
-            content_json: block.content_json,
-          }).eq('id', block.id);
+          await fetch(`/api/admin/issues/${issueId}/blocks/${block.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+              page_number: block.page_number,
+              block_type: block.block_type,
+              position: block.position,
+              content_json: block.content_json,
+            }),
+          });
         }
       }
     } catch (err) {
@@ -255,7 +271,12 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
   const changeStatus = async (newStatus: string) => {
     if (!issue) return;
     updateIssue('status', newStatus);
-    await supabase.from('issues').update({ status: newStatus }).eq('id', issueId);
+    await fetch(`/api/admin/issues/${issueId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ status: newStatus }),
+    });
   };
 
   if (loading) {

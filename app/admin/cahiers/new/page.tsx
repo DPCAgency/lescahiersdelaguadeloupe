@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, FileText, Upload, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase/client';
 
 export default function NewCahierPage() {
   const router = useRouter();
@@ -14,34 +13,31 @@ export default function NewCahierPage() {
     setCreating(true);
     setError(null);
     try {
-      const { data: userData, error: authErr } = await supabase.auth.getUser();
-      if (authErr || !userData.user) {
+      const resp = await fetch('/api/admin/issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title: 'Nouveau Cahier' }),
+      });
+
+      if (resp.status === 401) {
         router.push('/connexion?redirect=/admin/cahiers/new');
         return;
       }
-
-      const issueNumber = `N°${String(Date.now()).slice(-3)}`;
-      const { data: newIssue, error: insertErr } = await supabase
-        .from('issues')
-        .insert({
-          issue_number: issueNumber,
-          slug: `numero-${Date.now()}`,
-          title: 'Nouveau Cahier',
-          status: 'draft',
-          page_count: 1,
-          price_per_page: 0.30,
-          full_download_price: 2.90,
-        })
-        .select('id')
-        .single();
-
-      if (insertErr || !newIssue) {
-        setError(insertErr?.message ?? 'Échec de la création');
+      if (resp.status === 403) {
+        setError('Accès refusé. Permissions admin requises.');
+        setCreating(false);
+        return;
+      }
+      if (!resp.ok) {
+        const data = await resp.json() as { error?: string };
+        setError(data.error ?? 'Échec de la création');
         setCreating(false);
         return;
       }
 
-      router.push(`/admin/cahiers/${newIssue.id}/edit`);
+      const data = await resp.json() as { id: string };
+      router.push(`/admin/cahiers/${data.id}/edit`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
       setCreating(false);
