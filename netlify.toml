@@ -8,5 +8,8 @@ included_files = [
   "node_modules/canvas/**"
 ]
 
+[functions."process-import-background"]
+background = true
+
 [[plugins]]
 package = "@netlify/plugin-nextjs"

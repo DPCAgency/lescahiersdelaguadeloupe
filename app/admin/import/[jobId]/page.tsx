@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Loader2, ArrowLeft, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
 import { formatFileSize } from '@/lib/imports/constants';
@@ -15,12 +15,11 @@ interface ImportJob {
   progress: number;
   error_message: string | null;
   metadata_json: Record<string, unknown> | null;
-}
-
-interface ProgressStep {
-  label: string;
-  status: 'done' | 'active' | 'pending';
-  percent: number;
+  total_pages: number | null;
+  processed_pages: number | null;
+  failed_pages: number | null;
+  current_page: number | null;
+  last_error: string | null;
 }
 
 type LoadError = 'session' | 'forbidden' | 'not_found' | 'server' | null;
@@ -35,25 +34,15 @@ export default function ImportJobPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<LoadError>(null);
-  const [debugInfo, setDebugInfo] = useState<string>('');
-  const [steps, setSteps] = useState<ProgressStep[]>([
-    { label: 'Téléversement du fichier', status: 'done', percent: 100 },
-    { label: 'Téléchargement du fichier source', status: 'pending', percent: 0 },
-    { label: 'Analyse documentaire (OCR + structure)', status: 'pending', percent: 0 },
-    { label: 'Extraction des blocs éditoriaux', status: 'pending', percent: 0 },
-    { label: 'Identification des articles potentiels', status: 'pending', percent: 0 },
-  ]);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fileSize = job?.metadata_json
     ? (job.metadata_json as { file_size?: number }).file_size ?? null
     : null;
 
   const loadJob = useCallback(async () => {
-    console.log('[IMPORT DEBUG]', { jobId, pathname: window.location.pathname });
-    setDebugInfo(`JOB ID: ${jobId}`);
     try {
       const result = await safeJsonFetch(`/api/import/jobs/${jobId}`, { credentials: 'same-origin' });
-      setDebugInfo(prev => `${prev} | API STATUS: ${result.status}`);
 
       if (result.status === 401) {
         setLoadError('session');
@@ -71,43 +60,49 @@ export default function ImportJobPage() {
         return;
       }
       if (!result.ok) {
-        setDebugInfo(prev => `${prev} | API ERROR: ${result.error ?? 'unknown'}`);
         setLoadError('server');
         setLoading(false);
         return;
       }
 
       const data = result.data as ImportJob;
-      setDebugInfo(prev => `${prev} | JOB FOUND: ${data.id} status=${data.status}`);
       setJob(data);
       setLoading(false);
 
       if (data?.status === 'needs_review') {
+        if (pollRef.current) clearInterval(pollRef.current);
         router.push(`/admin/import/${jobId}/review`);
       }
-    } catch (err) {
-      setDebugInfo(prev => `${prev} | NETWORK ERROR: ${err instanceof Error ? err.message : 'unknown'}`);
+
+      if (data?.status === 'failed') {
+        if (pollRef.current) clearInterval(pollRef.current);
+      }
+    } catch {
       setLoadError('server');
       setLoading(false);
     }
   }, [jobId, router]);
 
-  useEffect(() => { loadJob(); }, [loadJob]);
+  useEffect(() => {
+    loadJob();
+  }, [loadJob]);
 
-  const updateStep = (index: number, status: ProgressStep['status'], percent: number) => {
-    setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, status, percent } : s)));
-  };
+  // Poll while processing
+  useEffect(() => {
+    if (job?.status === 'processing' && !pollRef.current) {
+      pollRef.current = setInterval(loadJob, 2500);
+    }
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [job?.status, loadJob]);
 
   const startAnalysis = async () => {
     setAnalyzing(true);
     setError(null);
-
-    updateStep(1, 'active', 50);
-    await new Promise((r) => setTimeout(r, 500));
-    updateStep(1, 'done', 100);
-
-    updateStep(2, 'active', 30);
-    updateStep(3, 'active', 20);
 
     try {
       const result = await safeJsonFetch('/api/import/analyze', {
@@ -117,28 +112,22 @@ export default function ImportJobPage() {
       });
 
       if (!result.ok) {
-        throw new Error(result.error ?? `Échec de l'analyse (HTTP ${result.status})`);
+        throw new Error(result.error ?? `Échec du démarrage (HTTP ${result.status})`);
       }
 
-      const data = result.data as { success?: boolean; error?: string; mode?: string };
+      const data = result.data as { success?: boolean; error?: string; status?: string };
 
       if (!data.success) {
-        throw new Error(data.error ?? 'Échec de l\'analyse');
+        throw new Error(data.error ?? 'Échec du démarrage de l\'analyse');
       }
 
-      updateStep(2, 'done', 100);
-      updateStep(3, 'done', 100);
-      updateStep(4, 'done', 100);
-
-      await new Promise((r) => setTimeout(r, 500));
-      router.push(`/admin/import/${jobId}/review`);
+      // Start polling
+      if (!pollRef.current) {
+        pollRef.current = setInterval(loadJob, 2500);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erreur inconnue';
       setError(msg);
-      updateStep(2, 'pending', 0);
-      updateStep(3, 'pending', 0);
-      updateStep(4, 'pending', 0);
-      await loadJob();
     }
 
     setAnalyzing(false);
@@ -176,9 +165,6 @@ export default function ImportJobPage() {
             <p className="text-sm text-amber-700">{messages[loadError]}</p>
           </div>
         </div>
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 font-mono text-xs text-neutral-500">
-          DEBUG: {debugInfo}
-        </div>
       </div>
     );
   }
@@ -190,9 +176,6 @@ export default function ImportJobPage() {
           <ArrowLeft className="h-4 w-4" /> Retour
         </button>
         <p className="text-sm text-neutral-400">Import introuvable.</p>
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 font-mono text-xs text-neutral-500">
-          DEBUG: {debugInfo}
-        </div>
       </div>
     );
   }
@@ -207,6 +190,9 @@ export default function ImportJobPage() {
           <AlertCircle className="h-8 w-8 text-red-500" />
           <h3 className="mt-2 font-display text-lg font-semibold text-red-700">Échec de l'analyse</h3>
           <p className="mt-1 text-sm text-red-600">{job.error_message ?? 'Erreur inconnue'}</p>
+          {job.last_error && (
+            <p className="mt-2 rounded bg-red-100 p-2 font-mono text-xs text-red-700">{job.last_error}</p>
+          )}
           <button
             onClick={startAnalysis}
             disabled={analyzing}
@@ -219,6 +205,23 @@ export default function ImportJobPage() {
       </div>
     );
   }
+
+  const isProcessing = job.status === 'processing';
+  const totalPages = job.total_pages ?? job.page_count ?? 0;
+  const processedPages = job.processed_pages ?? 0;
+  const failedPages = job.failed_pages ?? 0;
+  const currentPage = job.current_page ?? 0;
+  const progressPercent = isProcessing && totalPages > 0
+    ? Math.round(((processedPages + failedPages) / totalPages) * 100)
+    : job.progress;
+
+  const steps = [
+    { label: 'Téléversement du fichier', done: true },
+    { label: 'Téléchargement du fichier source', done: true },
+    { label: 'Rendu PDF des pages', done: progressPercent >= 25 },
+    { label: 'Analyse documentaire (IA)', done: !isProcessing && job.status === 'needs_review', active: isProcessing },
+    { label: 'Extraction des blocs éditoriaux', done: !isProcessing && job.status === 'needs_review', active: isProcessing },
+  ];
 
   return (
     <div className="space-y-6">
@@ -235,10 +238,6 @@ export default function ImportJobPage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 font-mono text-xs text-neutral-400">
-        DEBUG JOB ID: {jobId}
-      </div>
-
       {error && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
           <div className="flex items-center gap-2">
@@ -249,28 +248,24 @@ export default function ImportJobPage() {
       )}
 
       <div className="max-w-2xl rounded-lg border border-neutral-200 bg-white p-6">
+        {/* Steps */}
         <div className="space-y-4">
           {steps.map((step, i) => (
             <div key={i} className="flex items-center gap-4">
               <div className="flex h-8 w-8 items-center justify-center shrink-0">
-                {step.status === 'done' ? (
+                {step.done ? (
                   <CheckCircle2 className="h-6 w-6 text-green-500" />
-                ) : step.status === 'active' ? (
+                ) : step.active ? (
                   <Loader2 className="h-6 w-6 animate-spin text-ink" />
                 ) : (
                   <div className="h-6 w-6 rounded-full border-2 border-neutral-200" />
                 )}
               </div>
               <div className="flex-1">
-                <p className={`text-sm font-medium ${step.status === 'pending' ? 'text-neutral-400' : 'text-neutral-700'}`}>
+                <p className={`text-sm font-medium ${step.done || step.active ? 'text-neutral-700' : 'text-neutral-400'}`}>
                   {step.label}
                 </p>
-                {step.status === 'active' && (
-                  <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-neutral-200">
-                    <div className="h-full rounded-full bg-ink transition-all duration-500" style={{ width: `${step.percent}%` }} />
-                  </div>
-                )}
-                {step.status === 'done' && (
+                {step.done && (
                   <p className="text-xs text-green-600">Terminé</p>
                 )}
               </div>
@@ -278,10 +273,52 @@ export default function ImportJobPage() {
           ))}
         </div>
 
-        {analyzing && (
+        {/* Progress bar */}
+        {isProcessing && (
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-neutral-700">
+                {totalPages > 0
+                  ? `Analyse documentaire — ${processedPages + failedPages} / ${totalPages} pages`
+                  : 'Initialisation...'}
+              </span>
+              <span className="text-neutral-500">{progressPercent}%</span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-200">
+              <div
+                className="h-full rounded-full bg-ink transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            {totalPages > 0 && (
+              <div className="flex items-center gap-4 text-xs text-neutral-400">
+                <span>Page en cours: {currentPage} / {totalPages}</span>
+                {failedPages > 0 && <span className="text-red-500">{failedPages} page(s) en échec</span>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {isProcessing && (
           <p className="mt-6 text-xs text-neutral-400">
-            L'analyse documentaire est en cours. Pour les PDF volumineux, cela peut prendre plusieurs minutes.
+            L'analyse documentaire est en cours. Le rendu PDF et l'analyse IA sont traités en arrière-plan.
+            Cette page se met à jour automatiquement.
           </p>
+        )}
+
+        {job.status === 'needs_review' && (
+          <div className="mt-6 space-y-3">
+            <div className="flex items-center gap-2 text-sm text-green-600">
+              <CheckCircle2 className="h-4 w-4" />
+              Analyse terminée
+            </div>
+            <button
+              onClick={() => router.push(`/admin/import/${jobId}/review`)}
+              className="flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/90"
+            >
+              Vérifier le contenu extrait
+            </button>
+          </div>
         )}
       </div>
     </div>
