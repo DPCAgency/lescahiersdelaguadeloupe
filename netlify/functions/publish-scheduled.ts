@@ -13,28 +13,54 @@ export default async function handler(_req: Request): Promise<Response> {
 
   const now = new Date().toISOString();
 
-  const { data: scheduled, error } = await client
+  // Publish scheduled issues
+  const { data: scheduledIssues, error: issueErr } = await client
     .from('issues')
     .select('id, publication_date')
     .eq('status', 'scheduled')
     .lte('scheduled_at', now);
 
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+  let issuesPublished = 0;
+  if (issueErr) {
+    console.error('Issue query error:', issueErr.message);
+  } else {
+    for (const issue of scheduledIssues ?? []) {
+      const pubDate = issue.publication_date ?? now.split('T')[0];
+      await client.from('issues').update({
+        status: 'published',
+        publication_date: pubDate,
+        scheduled_at: null,
+      }).eq('id', issue.id);
+      issuesPublished++;
+    }
   }
 
-  let published = 0;
-  for (const issue of scheduled ?? []) {
-    const pubDate = issue.publication_date ?? now.split('T')[0];
-    await client.from('issues').update({
-      status: 'published',
-      publication_date: pubDate,
-      scheduled_at: null,
-    }).eq('id', issue.id);
-    published++;
+  // Publish scheduled articles
+  const { data: scheduledArticles, error: articleErr } = await client
+    .from('articles')
+    .select('id, published_at')
+    .eq('status', 'scheduled')
+    .lte('scheduled_at', now);
+
+  let articlesPublished = 0;
+  if (articleErr) {
+    console.error('Article query error:', articleErr.message);
+  } else {
+    for (const article of scheduledArticles ?? []) {
+      await client.from('articles').update({
+        status: 'published',
+        published_at: article.published_at ?? now,
+        scheduled_at: null,
+      }).eq('id', article.id);
+      articlesPublished++;
+    }
   }
 
-  return new Response(JSON.stringify({ checked: scheduled?.length ?? 0, published }), {
+  return new Response(JSON.stringify({
+    checked: (scheduledIssues?.length ?? 0) + (scheduledArticles?.length ?? 0),
+    issuesPublished,
+    articlesPublished,
+  }), {
     headers: { 'Content-Type': 'application/json' },
   });
 }

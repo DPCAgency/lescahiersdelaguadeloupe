@@ -22,12 +22,18 @@ export default async function ArticleEditorPage({ params }: { params: { id: stri
     .eq('is_active', true)
     .order('name');
 
+  const { data: issues } = await supabaseAdmin
+    .from('issues')
+    .select('id, issue_number, title')
+    .order('issue_number', { ascending: false });
+
   return (
     <ArticleEditorClient
       articleId={params.id}
       categories={categories ?? []}
       authors={authors ?? []}
       territories={territories ?? []}
+      issues={issues ?? []}
     />
   );
 }

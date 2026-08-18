@@ -41,7 +41,18 @@ export async function GET(req: NextRequest, { params }: { params: { articleId: s
     .select('territory_id')
     .eq('article_id', params.articleId);
 
-  return NextResponse.json({ ...article, blocks: blocks ?? [], territory_ids: (territories ?? []).map((t) => t.territory_id) });
+  const { data: issueSource } = await client
+    .from('article_issue_sources')
+    .select('issue_id, page_start, page_end, source_notes')
+    .eq('article_id', params.articleId)
+    .maybeSingle();
+
+  return NextResponse.json({
+    ...article,
+    blocks: blocks ?? [],
+    territory_ids: (territories ?? []).map((t) => t.territory_id),
+    issue_source: issueSource ?? null,
+  });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { articleId: string } }) {
@@ -111,6 +122,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { articleId:
       await client.from('article_territories').insert(
         (body.territory_ids as string[]).map((territory_id) => ({ article_id: params.articleId, territory_id })),
       );
+    }
+  }
+
+  // Replace issue source if provided
+  if (body.issue_source !== undefined) {
+    await client.from('article_issue_sources').delete().eq('article_id', params.articleId);
+    const src = body.issue_source as { issue_id?: string; page_start?: number; page_end?: number; source_notes?: string } | null;
+    if (src && src.issue_id) {
+      await client.from('article_issue_sources').insert({
+        article_id: params.articleId,
+        issue_id: src.issue_id,
+        page_start: src.page_start ?? null,
+        page_end: src.page_end ?? null,
+        source_notes: src.source_notes ?? null,
+      });
     }
   }
 

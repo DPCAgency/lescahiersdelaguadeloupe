@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Save, Loader2, Plus, Trash2, ChevronUp, ChevronDown, Eye,
   ArrowLeft, GripVertical, GitCompare, Upload, AlertCircle,
+  Send, Calendar, XCircle, EyeOff, ExternalLink,
 } from 'lucide-react';
 import { RichTextEditor } from './rich-text-editor';
 import { RichTextRenderer } from '@/components/editorial/rich-text-renderer';
@@ -84,11 +85,13 @@ export default function ArticleEditorClient({
   categories,
   authors,
   territories,
+  issues,
 }: {
   articleId: string;
   categories: { id: string; name: string }[];
   authors: { id: string; name: string }[];
   territories: { id: string; name: string }[];
+  issues: { id: string; issue_number: string; title: string }[];
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(articleId !== 'new');
@@ -102,6 +105,10 @@ export default function ArticleEditorClient({
   const [currentId, setCurrentId] = useState(articleId);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [issueSource, setIssueSource] = useState<{ issue_id: string; page_start: string; page_end: string }>({ issue_id: '', page_start: '', page_end: '' });
 
   const [article, setArticle] = useState({
     title: '',
@@ -165,6 +172,12 @@ export default function ArticleEditorClient({
       })));
       const terrIds = (d.territory_ids as string[]) ?? [];
       setSelectedTerritories(new Set(terrIds));
+      const src = (d.issue_source as { issue_id?: string; page_start?: number; page_end?: number } | null) ?? null;
+      setIssueSource({
+        issue_id: src?.issue_id ?? '',
+        page_start: src?.page_start?.toString() ?? '',
+        page_end: src?.page_end?.toString() ?? '',
+      });
     }
     setLoading(false);
   }, [articleId]);
@@ -319,6 +332,7 @@ export default function ArticleEditorClient({
           reading_time_minutes: totalWords > 0 ? Math.max(1, Math.ceil(totalWords / 200)) : null,
           blocks: blocks.map((b, i) => ({ type: b.type, position: i, content_json: b.content_json })),
           territory_ids: Array.from(selectedTerritories),
+          issue_source: issueSource.issue_id ? { issue_id: issueSource.issue_id, page_start: issueSource.page_start ? parseInt(issueSource.page_start) : null, page_end: issueSource.page_end ? parseInt(issueSource.page_end) : null } : null,
         }),
       });
       if (!resp.ok) throw new Error('Sauvegarde échouée');
@@ -327,9 +341,65 @@ export default function ArticleEditorClient({
     } catch {
       setSaveState('error');
     }
-  }, [article, blocks, selectedTerritories, router]);
+  }, [article, blocks, selectedTerritories, issueSource, router]);
 
   const handleSave = () => { doSave(true); };
+
+  const handlePublish = async () => {
+    if (currentIdRef.current === 'new') return;
+    setActionLoading(true);
+    try {
+      const resp = await fetch(`/api/admin/articles/${currentIdRef.current}/publish`, { method: 'POST', credentials: 'same-origin' });
+      if (resp.ok) {
+        const d = await resp.json() as { status: string; published_at: string };
+        setArticle((prev) => ({ ...prev, status: d.status, published_at: d.published_at ? new Date(d.published_at).toISOString().slice(0, 16) : prev.published_at }));
+      }
+    } catch { /* ignore */ }
+    setActionLoading(false);
+  };
+
+  const handleUnpublish = async () => {
+    if (currentIdRef.current === 'new') return;
+    setActionLoading(true);
+    try {
+      const resp = await fetch(`/api/admin/articles/${currentIdRef.current}/unpublish`, { method: 'POST', credentials: 'same-origin' });
+      if (resp.ok) {
+        setArticle((prev) => ({ ...prev, status: 'draft' }));
+      }
+    } catch { /* ignore */ }
+    setActionLoading(false);
+  };
+
+  const handleSchedule = async () => {
+    if (currentIdRef.current === 'new' || !scheduleDate) return;
+    setActionLoading(true);
+    try {
+      const resp = await fetch(`/api/admin/articles/${currentIdRef.current}/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ scheduled_at: new Date(scheduleDate).toISOString() }),
+      });
+      if (resp.ok) {
+        const d = await resp.json() as { status: string };
+        setArticle((prev) => ({ ...prev, status: d.status }));
+        setShowSchedule(false);
+      }
+    } catch { /* ignore */ }
+    setActionLoading(false);
+  };
+
+  const handleUnschedule = async () => {
+    if (currentIdRef.current === 'new') return;
+    setActionLoading(true);
+    try {
+      const resp = await fetch(`/api/admin/articles/${currentIdRef.current}/unschedule`, { method: 'POST', credentials: 'same-origin' });
+      if (resp.ok) {
+        setArticle((prev) => ({ ...prev, status: 'draft' }));
+      }
+    } catch { /* ignore */ }
+    setActionLoading(false);
+  };
 
   const handleHeroUpload = async (file: File) => {
     setUploading(true);
@@ -407,6 +477,17 @@ export default function ArticleEditorClient({
             <Eye className="h-4 w-4" />
             {previewMode ? 'Éditer' : 'Prévisualiser'}
           </button>
+          {currentId !== 'new' && (
+            <a
+              href={`/admin/articles/${currentId}/preview`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Preview
+            </a>
+          )}
           <button
             onClick={handleSave}
             disabled={saveState === 'saving'}
@@ -415,8 +496,51 @@ export default function ArticleEditorClient({
             {saveState === 'saving' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Enregistrer
           </button>
+          {currentId !== 'new' && article.status !== 'published' && (
+            <button
+              onClick={handlePublish}
+              disabled={actionLoading}
+              className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+            >
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Publier
+            </button>
+          )}
+          {currentId !== 'new' && article.status === 'published' && (
+            <button
+              onClick={handleUnpublish}
+              disabled={actionLoading}
+              className="flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+            >
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <EyeOff className="h-4 w-4" />}
+              Dépublier
+            </button>
+          )}
         </div>
       </div>
+
+      {article.status === 'scheduled' && article.published_at && (
+        <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <span className="text-sm font-medium text-blue-700">
+            Programmé pour le {new Date(article.published_at).toLocaleString('fr-FR')}
+          </span>
+          <button onClick={handleUnschedule} disabled={actionLoading} className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline">
+            {actionLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+            Annuler
+          </button>
+        </div>
+      )}
+
+      {showSchedule && (
+        <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white p-4">
+          <Calendar className="h-4 w-4 text-neutral-400" />
+          <input type="datetime-local" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} className="rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
+          <button onClick={handleSchedule} disabled={actionLoading || !scheduleDate} className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/90 disabled:opacity-50">
+            Confirmer
+          </button>
+          <button onClick={() => setShowSchedule(false)} className="text-sm text-neutral-400 hover:text-neutral-600">Annuler</button>
+        </div>
+      )}
 
       {compareMode ? (
         <div className="space-y-4">
@@ -574,8 +698,50 @@ export default function ArticleEditorClient({
                 <Field label="Date de publication">
                   <input type="datetime-local" value={article.published_at} onChange={(e) => updateField('published_at', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
                 </Field>
+                {currentId !== 'new' && article.status !== 'published' && article.status !== 'scheduled' && (
+                  <button onClick={() => setShowSchedule(true)} className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50">
+                    <Calendar className="h-4 w-4" />
+                    Programmer
+                  </button>
+                )}
+                {currentId !== 'new' && article.status === 'scheduled' && (
+                  <button onClick={handleUnschedule} disabled={actionLoading} className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50">
+                    {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                    Annuler programmation
+                  </button>
+                )}
               </div>
             </div>
+
+            {issues.length > 0 && (
+              <div className="rounded-lg border border-neutral-200 bg-white p-5">
+                <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Cahier associé</h3>
+                <div className="space-y-4">
+                  <Field label="Cahier">
+                    <select
+                      value={issueSource.issue_id}
+                      onChange={(e) => { setIssueSource((prev) => ({ ...prev, issue_id: e.target.value })); markDirty(); }}
+                      className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+                    >
+                      <option value="">—</option>
+                      {issues.map((iss) => (
+                        <option key={iss.id} value={iss.id}>N°{iss.issue_number} — {iss.title}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  {issueSource.issue_id && (
+                    <div className="flex gap-2">
+                      <Field label="Page début">
+                        <input type="number" value={issueSource.page_start} onChange={(e) => { setIssueSource((prev) => ({ ...prev, page_start: e.target.value })); markDirty(); }} className="w-24 rounded-lg border border-neutral-200 px-3 py-2 text-sm" min={1} />
+                      </Field>
+                      <Field label="Page fin">
+                        <input type="number" value={issueSource.page_end} onChange={(e) => { setIssueSource((prev) => ({ ...prev, page_end: e.target.value })); markDirty(); }} className="w-24 rounded-lg border border-neutral-200 px-3 py-2 text-sm" min={1} />
+                      </Field>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="rounded-lg border border-neutral-200 bg-white p-5">
               <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Territoires</h3>
