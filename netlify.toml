@@ -8,5 +8,8 @@ background = true
 [functions."process-import-background"]
 background = true
 
+[functions."publish-scheduled"]
+schedule = "*/5 * * * *"
+
 [[plugins]]
 package = "@netlify/plugin-nextjs"

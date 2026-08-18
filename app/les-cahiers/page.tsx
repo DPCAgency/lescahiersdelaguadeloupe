@@ -33,6 +33,7 @@ export default async function Page() {
       pricePerPage: row.price_per_page,
       fullDownloadPrice: row.full_download_price,
       pdfFile: row.pdf_file_path ?? '',
+      slug: row.slug,
     }));
   }
 
@@ -54,11 +55,11 @@ export default async function Page() {
 
       <section className="container-editorial py-14 lg:py-20">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-3">
-          {issueList.map((issue, i) => (
+          {issueList.map((issue) => (
             <IssueCard
               key={issue.number}
               issue={issue}
-              href={`/les-cahiers/${issueList[i].number.replace('N°', 'numero-').toLowerCase()}`}
+              href={`/les-cahiers/${issue.slug ?? issue.number.replace('N°', 'numero-').toLowerCase()}`}
             />
           ))}
         </div>

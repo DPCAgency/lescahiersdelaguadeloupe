@@ -63,6 +63,7 @@ export interface IssueSummary {
   pricePerPage: number;
   fullDownloadPrice: number;
   pdfFile?: string;
+  slug?: string;
 }
 
 export interface IssuePage {

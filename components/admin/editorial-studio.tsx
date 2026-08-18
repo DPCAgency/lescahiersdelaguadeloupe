@@ -17,7 +17,7 @@ import {
   Bold, Italic, List, Undo2, Redo2,
 } from 'lucide-react';
 import { RichTextEditor } from './rich-text-editor';
-import { RichTextRenderer } from '@/components/editorial/rich-text-renderer';
+import { PageRenderer as SharedPageRenderer, type PageBlockData } from '@/components/editorial/page-renderer';
 
 type BlockType = 'heading' | 'subheading' | 'paragraph' | 'image' | 'quote' | 'key_figure' | 'separator' | 'sidebar';
 type PageLayout = '1-column' | '2-columns' | 'hero-image' | 'image-text';
@@ -869,77 +869,15 @@ function BlockContentRenderer({ block, isSelected, onUpdate }: {
 
 // Shared page renderer (used by both preview and public display)
 function PageRenderer({ blocks, layout }: { blocks: PageBlock[]; layout: PageLayout }) {
-  const isTwoCol = layout === '2-columns';
-  const isImageText = layout === 'image-text';
-  const imageSide = blocks.find((b) => b.block_type === 'image')?.content_json.imageSide ?? 'left';
-
-  if (isImageText) {
-    const imageBlock = blocks.find((b) => b.block_type === 'image');
-    const textBlocks = blocks.filter((b) => b.block_type !== 'image');
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-        {imageSide === 'left' && imageBlock && <div><BlockPreview block={imageBlock} /></div>}
-        <div>{textBlocks.map((b) => <BlockPreview key={b.id} block={b} />)}</div>
-        {imageSide === 'right' && imageBlock && <div><BlockPreview block={imageBlock} /></div>}
-      </div>
-    );
-  }
-
-  if (isTwoCol) {
-    return (
-      <div className="grid grid-cols-2 gap-8">
-        {blocks.map((block) => {
-          const colSpan = block.content_json.columnSpan ?? (block.content_json.imageWidth === 'wide' || block.content_json.imageWidth === 'full' ? 2 : 1);
-          return <div key={block.id} className={colSpan === 2 ? 'col-span-2' : 'col-span-1'}><BlockPreview block={block} /></div>;
-        })}
-      </div>
-    );
-  }
-
-  return <div>{blocks.map((b) => <BlockPreview key={b.id} block={b} />)}</div>;
+  const pageBlockData: PageBlockData[] = blocks.map((b) => ({
+    id: b.id,
+    block_type: b.block_type,
+    position: b.position,
+    content_json: b.content_json,
+  }));
+  return <SharedPageRenderer blocks={pageBlockData} layout={layout} />;
 }
 
-// Block preview (no editing)
-function BlockPreview({ block }: { block: PageBlock }) {
-  const align = ALIGN_CLASSES[block.content_json.alignment ?? 'left'];
-  const spaceBefore = SPACE_CLASSES[block.content_json.spaceBefore ?? 'md'];
-  const spaceAfter = SPACE_CLASSES[block.content_json.spaceAfter ?? 'md'];
-
-  return (
-    <div className={`${spaceBefore} ${spaceAfter}`}>
-      {block.block_type === 'heading' && <h1 className={`font-display text-3xl font-bold text-neutral-800 ${align}`}>{block.content_json.text}</h1>}
-      {block.block_type === 'subheading' && <h2 className={`font-display text-xl font-semibold text-neutral-600 ${align}`}>{block.content_json.text}</h2>}
-      {block.block_type === 'paragraph' && (
-        <RichTextRenderer content={block.content_json.richContent ?? block.content_json.text} className={`leading-relaxed text-neutral-700 ${align}`} />
-      )}
-      {block.block_type === 'image' && block.content_json.imageUrl && (
-        <div className={align}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={block.content_json.imageUrl} alt={block.content_json.alt ?? ''} className="max-w-full rounded-lg" />
-          {block.content_json.caption && <p className="mt-2 text-xs text-neutral-400">{block.content_json.caption}</p>}
-        </div>
-      )}
-      {block.block_type === 'quote' && (
-        <blockquote className={`border-l-4 border-ink pl-4 ${align}`}>
-          <p className="font-display text-lg italic text-neutral-700">{block.content_json.text}</p>
-          {block.content_json.source && <cite className="mt-1 block text-xs text-neutral-400">— {block.content_json.source}</cite>}
-        </blockquote>
-      )}
-      {block.block_type === 'key_figure' && (
-        <div className={`rounded-lg bg-neutral-50 p-4 ${align}`}>
-          <p className="font-display text-4xl font-bold text-ink">{block.content_json.figure}</p>
-          {block.content_json.text && <p className="mt-1 text-xs text-neutral-500">{block.content_json.text}</p>}
-        </div>
-      )}
-      {block.block_type === 'separator' && <hr className="border-neutral-200" />}
-      {block.block_type === 'sidebar' && (
-        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-          <p className="text-sm font-medium text-neutral-700">{block.content_json.text}</p>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // Image upload zone
 function ImageUploadZone({ onUpload }: { onUpload: (url: string) => void }) {

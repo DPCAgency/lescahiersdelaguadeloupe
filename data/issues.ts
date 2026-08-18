@@ -13,6 +13,7 @@ export const issues: IssueSummary[] = [
     pricePerPage: 0.30,
     fullDownloadPrice: 2.90,
     pdfFile: '/assets/pdf/N°2_-_LES_CAHIERS_DE_LA_GUADELOUPE_2026.pdf',
+    slug: 'numero-02',
   },
 ];
 
