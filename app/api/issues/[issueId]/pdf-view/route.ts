@@ -23,5 +23,5 @@ export async function GET(_req: NextRequest, { params }: { params: { issueId: st
     return NextResponse.json({ error: 'URL signée indisponible' }, { status: 500 });
   }
 
-  return NextResponse.json({ url: data.signedUrl });
+  return NextResponse.redirect(data.signedUrl);
 }
