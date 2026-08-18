@@ -14,7 +14,7 @@ import {
   Loader2, ArrowLeft, Save, Plus, Trash2, ChevronUp, ChevronDown,
   Type, AlignLeft, Image as ImageIcon, Quote, BarChart3, Minus,
   PanelRight, Eye, FileText, Layers, Copy, X, GripVertical,
-  Bold, Italic, List, Undo2, Redo2,
+  Bold, Italic, List, Undo2, Redo2, Upload, ExternalLink,
 } from 'lucide-react';
 import { RichTextEditor } from './rich-text-editor';
 import { PageRenderer as SharedPageRenderer, type PageBlockData } from '@/components/editorial/page-renderer';
@@ -75,6 +75,7 @@ interface IssueData {
   free_pages_count: number;
   download_enabled: boolean;
   scheduled_at: string | null;
+  pdf_file_path: string | null;
 }
 
 const BLOCK_TYPES: { type: BlockType; label: string; icon: typeof Type }[] = [
@@ -166,6 +167,7 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
           theme: d.theme ?? '', editorial_director: d.editorial_director ?? '',
           free_pages_count: d.free_pages_count ?? 1, download_enabled: d.download_enabled ?? true,
           scheduled_at: d.scheduled_at ?? null,
+          pdf_file_path: d.pdf_file_path ?? null,
         });
       }
 
@@ -1114,6 +1116,103 @@ function IssueSettings({ issue, updateIssue }: {
         <input type="checkbox" checked={issue.download_enabled} onChange={(e) => updateIssue('download_enabled', e.target.checked)} className="h-4 w-4 accent-ink" />
         Téléchargement PDF activé
       </label>
+
+      <PdfSection issueId={issue.id} pdfFilePath={issue.pdf_file_path} onUploaded={(path) => updateIssue('pdf_file_path', path)} onDeleted={() => updateIssue('pdf_file_path', '')} />
+    </div>
+  );
+}
+
+function PdfSection({ issueId, pdfFilePath, onUploaded, onDeleted }: {
+  issueId: string;
+  pdfFilePath: string | null;
+  onUploaded: (path: string) => void;
+  onDeleted: () => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const resp = await fetch(`/api/admin/issues/${issueId}/pdf`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData,
+      });
+      if (!resp.ok) {
+        const d = await resp.json() as { error?: string };
+        throw new Error(d.error ?? 'Upload échoué');
+      }
+      const data = await resp.json() as { path: string };
+      onUploaded(data.path);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur');
+    }
+    setUploading(false);
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Supprimer le PDF associé à ce Cahier ?')) return;
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('action', 'delete');
+      await fetch(`/api/admin/issues/${issueId}/pdf`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData,
+      });
+      onDeleted();
+    } catch {
+      setError('Échec de la suppression');
+    }
+    setUploading(false);
+  };
+
+  return (
+    <div className="space-y-2 border-t border-neutral-200 pt-4">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">PDF original du Cahier</h4>
+      {pdfFilePath ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-3">
+            <FileText className="h-5 w-5 text-green-600" />
+            <span className="text-sm text-green-700">PDF associé</span>
+          </div>
+          <div className="flex gap-2">
+            <a href={`/api/issues/${issueId}/pdf-view`} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50">
+              <ExternalLink className="h-3.5 w-3.5" /> Voir le PDF
+            </a>
+            <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              className="flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50">
+              {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+              Remplacer
+            </button>
+            <button onClick={handleDelete} disabled={uploading}
+              className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">
+              <Trash2 className="h-3.5 w-3.5" /> Supprimer
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-neutral-400">Aucun PDF téléversé.</p>
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+            className="flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50">
+            {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+            Téléverser le PDF
+          </button>
+          <p className="text-[10px] text-neutral-300">PDF uniquement — 50 Mo maximum</p>
+        </div>
+      )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
     </div>
   );
 }
