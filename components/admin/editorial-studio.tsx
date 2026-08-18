@@ -1136,23 +1136,47 @@ function PdfSection({ issueId, pdfFilePath, onUploaded, onDeleted }: {
     setUploading(true);
     setError(null);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const resp = await fetch(`/api/admin/issues/${issueId}/pdf`, {
+      // Step A: request signed upload URL from server (no file in body)
+      const urlResp = await fetch(`/api/admin/issues/${issueId}/pdf/upload-url`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: formData,
+        body: JSON.stringify({ filename: file.name, size: file.size, contentType: file.type }),
       });
-      const data = await safeJsonParse(resp);
-      if (!resp.ok) {
-        throw new Error(data?.error ?? `Erreur HTTP ${resp.status}`);
+      const urlData = await safeJsonParse(urlResp);
+      if (!urlResp.ok || !urlData?.success) {
+        throw new Error(urlData?.error ?? `Erreur HTTP ${urlResp.status}`);
       }
-      if (!data) {
-        throw new Error('Le serveur n\'a pas retourné une réponse valide.');
+
+      const { path, token } = urlData;
+      if (!path || !token) {
+        throw new Error('Réponse d\'upload invalide');
       }
-      onUploaded(data.pdf_file_path ?? data.path ?? '');
+
+      // Step B: upload directly browser → Supabase Storage (bypasses Netlify)
+      const { supabase } = await import('@/lib/supabase/client');
+      const { error: uploadError } = await supabase.storage
+        .from('issues-private')
+        .uploadToSignedUrl(path, token, file, { contentType: 'application/pdf' });
+
+      if (uploadError) {
+        throw new Error(`Échec de l'upload vers Supabase: ${uploadError.message}`);
+      }
+
+      // Step C: finalize — tell server to persist the path and clean old file
+      const completeResp = await fetch(`/api/admin/issues/${issueId}/pdf/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ path, originalName: file.name, size: file.size }),
+      });
+      const completeData = await safeJsonParse(completeResp);
+      if (!completeResp.ok || !completeData?.success) {
+        throw new Error(completeData?.error ?? `Erreur HTTP ${completeResp.status}`);
+      }
+      onUploaded(completeData.pdf_file_path ?? path ?? '');
     } catch (err) {
-      console.error('[PDF Upload]', { endpoint: `/api/admin/issues/${issueId}/pdf`, error: err });
+      console.error('[PDF Upload]', { endpoint: `/api/admin/issues/${issueId}/pdf/upload-url`, error: err });
       setError(err instanceof Error ? err.message : 'Impossible de téléverser le PDF.');
     }
     setUploading(false);
@@ -1225,11 +1249,11 @@ function PdfSection({ issueId, pdfFilePath, onUploaded, onDeleted }: {
   );
 }
 
-async function safeJsonParse(resp: Response): Promise<{ error?: string; pdf_file_path?: string; path?: string; success?: boolean } | null> {
+async function safeJsonParse(resp: Response): Promise<{ error?: string; pdf_file_path?: string; path?: string; token?: string; signedUrl?: string; success?: boolean } | null> {
   const text = await resp.text();
   if (!text) return null;
   try {
-    return JSON.parse(text) as { error?: string; pdf_file_path?: string; path?: string; success?: boolean };
+    return JSON.parse(text) as { error?: string; pdf_file_path?: string; path?: string; token?: string; signedUrl?: string; success?: boolean };
   } catch {
     return null;
   }
