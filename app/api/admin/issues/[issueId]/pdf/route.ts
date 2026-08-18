@@ -18,7 +18,7 @@ function adminClient(token: string) {
 
 export async function POST(req: NextRequest, { params }: { params: { issueId: string } }) {
   const user = await requireAdmin(req);
-  if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+  if (!user) return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
 
   const formData = await req.formData();
   const file = formData.get('file') as File | null;
@@ -39,18 +39,18 @@ export async function POST(req: NextRequest, { params }: { params: { issueId: st
       await client.storage.from('issues-private').remove([issue.pdf_file_path]);
       await client.from('issues').update({ pdf_file_path: null }).eq('id', params.issueId);
     }
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, pdf_file_path: null });
   }
 
   // Upload / replace
-  if (!file) return NextResponse.json({ error: 'Aucun fichier' }, { status: 400 });
+  if (!file) return NextResponse.json({ success: false, error: 'Aucun fichier' }, { status: 400 });
 
   if (file.type !== 'application/pdf') {
-    return NextResponse.json({ error: 'Format non autorisé. PDF uniquement.' }, { status: 400 });
+    return NextResponse.json({ success: false, error: 'Format non autorisé. PDF uniquement.' }, { status: 400 });
   }
 
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: 'Fichier trop volumineux (max 50 MB).' }, { status: 400 });
+    return NextResponse.json({ success: false, error: 'Fichier trop volumineux (max 50 MB).' }, { status: 400 });
   }
 
   const timestamp = Date.now();
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: { issueId: st
     .upload(filePath, file, { contentType: 'application/pdf', upsert: false });
 
   if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: uploadError.message }, { status: 500 });
   }
 
   // Get old path for cleanup after successful upload
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest, { params }: { params: { issueId: st
   if (updateError) {
     // Rollback: remove newly uploaded file
     await client.storage.from('issues-private').remove([filePath]);
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: updateError.message }, { status: 500 });
   }
 
   // Delete old file only after successful update
@@ -91,15 +91,16 @@ export async function POST(req: NextRequest, { params }: { params: { issueId: st
   }
 
   return NextResponse.json({
-    path: filePath,
+    success: true,
+    pdf_file_path: filePath,
     original_name: file.name,
     size: file.size,
-  }, { status: 201 });
+  });
 }
 
 export async function GET(req: NextRequest, { params }: { params: { issueId: string } }) {
   const user = await requireAdmin(req);
-  if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+  if (!user) return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
 
   const token = req.cookies.get('sb-access-token')!.value;
   const client = adminClient(token);

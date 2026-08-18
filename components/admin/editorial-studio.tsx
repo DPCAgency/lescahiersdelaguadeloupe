@@ -1143,14 +1143,17 @@ function PdfSection({ issueId, pdfFilePath, onUploaded, onDeleted }: {
         credentials: 'same-origin',
         body: formData,
       });
+      const data = await safeJsonParse(resp);
       if (!resp.ok) {
-        const d = await resp.json() as { error?: string };
-        throw new Error(d.error ?? 'Upload échoué');
+        throw new Error(data?.error ?? `Erreur HTTP ${resp.status}`);
       }
-      const data = await resp.json() as { path: string };
-      onUploaded(data.path);
+      if (!data) {
+        throw new Error('Le serveur n\'a pas retourné une réponse valide.');
+      }
+      onUploaded(data.pdf_file_path ?? data.path ?? '');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur');
+      console.error('[PDF Upload]', { endpoint: `/api/admin/issues/${issueId}/pdf`, error: err });
+      setError(err instanceof Error ? err.message : 'Impossible de téléverser le PDF.');
     }
     setUploading(false);
   };
@@ -1162,14 +1165,19 @@ function PdfSection({ issueId, pdfFilePath, onUploaded, onDeleted }: {
     try {
       const formData = new FormData();
       formData.append('action', 'delete');
-      await fetch(`/api/admin/issues/${issueId}/pdf`, {
+      const resp = await fetch(`/api/admin/issues/${issueId}/pdf`, {
         method: 'POST',
         credentials: 'same-origin',
         body: formData,
       });
+      const data = await safeJsonParse(resp);
+      if (!resp.ok) {
+        throw new Error(data?.error ?? `Erreur HTTP ${resp.status}`);
+      }
       onDeleted();
-    } catch {
-      setError('Échec de la suppression');
+    } catch (err) {
+      console.error('[PDF Delete]', { endpoint: `/api/admin/issues/${issueId}/pdf`, error: err });
+      setError(err instanceof Error ? err.message : 'Impossible de supprimer le PDF.');
     }
     setUploading(false);
   };
@@ -1215,4 +1223,14 @@ function PdfSection({ issueId, pdfFilePath, onUploaded, onDeleted }: {
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
     </div>
   );
+}
+
+async function safeJsonParse(resp: Response): Promise<{ error?: string; pdf_file_path?: string; path?: string; success?: boolean } | null> {
+  const text = await resp.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as { error?: string; pdf_file_path?: string; path?: string; success?: boolean };
+  } catch {
+    return null;
+  }
 }
