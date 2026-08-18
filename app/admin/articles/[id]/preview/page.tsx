@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
-import { requireAdmin } from '@/lib/auth/admin';
+import { getAdminFromToken } from '@/lib/auth/admin';
 import { ArticleRenderer, type ArticleRenderData } from '@/components/editorial/article-renderer';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -8,24 +9,19 @@ import Link from 'next/link';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function adminClient(token: string) {
+export default async function ArticlePreviewPage({ params }: { params: { id: string } }) {
+  const token = cookies().get('sb-access-token')?.value;
+  const user = await getAdminFromToken(token);
+  if (!user) {
+    redirect(`/connexion?redirect=/admin/articles/${params.id}/preview`);
+  }
+
+  // Admin JWT client — RLS allows admin roles to read any article via the admin_write policy.
+  // Service role is not needed: the admin_write policy grants FOR ALL to admin profiles.
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key, {
+  const client = createClient(url, key, {
     global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-export default async function ArticlePreviewPage({ params }: { params: { id: string } }) {
-  const req = new NextRequest('http://localhost');
-  const user = await requireAdmin(req);
-  if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-
-  // Use service role for preview — admin can see any status
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  const client = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
@@ -40,7 +36,9 @@ export default async function ArticlePreviewPage({ params }: { params: { id: str
     .eq('id', params.id)
     .maybeSingle();
 
-  if (!article) return NextResponse.json({ error: 'Article introuvable' }, { status: 404 });
+  if (!article) {
+    redirect(`/admin/articles/${params.id}`);
+  }
 
   const { data: blocks } = await client
     .from('article_blocks')

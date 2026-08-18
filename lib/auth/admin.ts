@@ -17,13 +17,10 @@ export interface AdminUser {
   email: string | null;
 }
 
-export async function requireAdmin(req: NextRequest): Promise<AdminUser | null> {
+export async function getAdminFromToken(token: string | undefined): Promise<AdminUser | null> {
   const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) return null;
-
-  const token = req.cookies.get('sb-access-token')?.value;
-  if (!token) return null;
+  if (!supabaseUrl || !anonKey || !token) return null;
 
   try {
     const client = createClient(supabaseUrl, anonKey);
@@ -48,6 +45,11 @@ export async function requireAdmin(req: NextRequest): Promise<AdminUser | null> 
   } catch {
     return null;
   }
+}
+
+export async function requireAdmin(req: NextRequest): Promise<AdminUser | null> {
+  const token = req.cookies.get('sb-access-token')?.value;
+  return getAdminFromToken(token);
 }
 
 export function unauthorizedResponse(): NextResponse {
