@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^3.9.0",
     "@netlify/functions": "^5.3.0",
     "@netlify/plugin-nextjs": "^5.15.13",
@@ -42,6 +45,9 @@
     "@radix-ui/react-toggle-group": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.2",
     "@supabase/supabase-js": "^2.58.0",
+    "@tiptap/pm": "^3.30.1",
+    "@tiptap/react": "^3.30.1",
+    "@tiptap/starter-kit": "^3.30.1",
     "@types/node": "20.6.2",
     "@types/react": "18.2.22",
     "@types/react-dom": "18.2.7",

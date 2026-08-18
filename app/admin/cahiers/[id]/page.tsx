@@ -1,7 +1,7 @@
-import CahierEditorClient from '@/components/admin/cahier-editor-client';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CahierEditorPage({ params }: { params: { id: string } }) {
-  return <CahierEditorClient issueId={params.id} />;
+  redirect(`/admin/cahiers/${params.id}/edit`);
 }
