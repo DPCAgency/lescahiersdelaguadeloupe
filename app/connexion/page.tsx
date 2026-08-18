@@ -17,7 +17,11 @@ export default async function Page({ searchParams }: { searchParams: { redirect?
             Accéder à vos Cahiers
           </h1>
 
-          <form className="mt-8 flex flex-col gap-5" action="/api/auth/signin" method="post">
+          <p className="mt-6 text-[13px] font-semibold uppercase tracking-[0.14em] text-muted">
+            Déjà un compte ?
+          </p>
+
+          <form className="mt-4 flex flex-col gap-5" action="/api/auth/signin" method="post">
             {redirect && (
               <input type="hidden" name="redirect" value={redirect} />
             )}
@@ -53,24 +57,24 @@ export default async function Page({ searchParams }: { searchParams: { redirect?
               Se connecter
               <ArrowRight className="h-4 w-4" />
             </button>
+            <Link href="/mot-de-passe-oublie" className="text-center text-[13px] text-muted hover:text-ink">
+              Mot de passe oublié ?
+            </Link>
           </form>
 
-          <div className="mt-6 flex flex-col gap-3 border-t border-border pt-6">
-            <Link href="/inscription" className="text-[14px] font-medium text-primary hover:text-primary-dark">
-              Créer un compte
-            </Link>
-            <Link href="/mot-de-passe-oublie" className="text-[14px] text-muted hover:text-ink">
-              Mot de passe oublié ?
+          <div className="mt-8 border-t border-border pt-6">
+            <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-muted">
+              Nouveau lecteur ?
+            </p>
+            <p className="mt-2 text-[14px] text-muted">
+              Créez gratuitement votre compte pour accéder à votre bibliothèque et vos favoris.
+            </p>
+            <Link href="/inscription" className="btn-editorial-outline mt-4 inline-flex">
+              Créer gratuitement mon compte
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
-
-        <p className="mt-6 text-center text-[12px] text-muted">
-          Pas encore abonné ?{' '}
-          <Link href="/abonnement" className="font-semibold text-primary hover:text-primary-dark">
-            Découvrir nos formules
-          </Link>
-        </p>
       </div>
     </section>
   );
