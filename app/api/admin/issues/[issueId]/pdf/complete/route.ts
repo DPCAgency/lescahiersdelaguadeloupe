@@ -1,28 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/auth/admin';
 import { getRequiredServiceRoleClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-function userClient(token: string) {
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-function getStorageClient(req: NextRequest) {
-  try {
-    return getRequiredServiceRoleClient();
-  } catch {
-    const token = req.cookies.get('sb-access-token')!.value;
-    return userClient(token);
-  }
-}
 
 export async function POST(req: NextRequest, { params }: { params: { issueId: string } }) {
   const user = await requireAdmin(req);
@@ -42,7 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: { issueId: st
   }
 
   try {
-    const client = getStorageClient(req);
+    const client = getRequiredServiceRoleClient();
 
     // Verify the object exists in storage
     const { data: fileData, error: listError } = await client.storage
@@ -93,6 +74,6 @@ export async function POST(req: NextRequest, { params }: { params: { issueId: st
     });
   } catch (err) {
     console.error('[PDF COMPLETE]', { issueId: params.issueId, error: err });
-    return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Configuration Storage serveur manquante' }, { status: 500 });
   }
 }

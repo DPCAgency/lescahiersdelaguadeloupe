@@ -1,24 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { getRequiredServiceRoleClient } from '@/lib/supabase/server';
-import { getSupabaseUrl, getSupabaseAnonKey } from '@/lib/supabase/env';
+import { getSupabaseUrl } from '@/lib/supabase/env';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-function anonClient() {
-  return createClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-function getStorageClient() {
-  try {
-    return getRequiredServiceRoleClient();
-  } catch {
-    return anonClient();
-  }
-}
 
 export async function GET(
   req: NextRequest,
@@ -28,7 +13,7 @@ export async function GET(
   if (!issueId) return NextResponse.json({ error: 'ID du Cahier requis' }, { status: 400 });
 
   try {
-    const admin = getStorageClient();
+    const admin = getRequiredServiceRoleClient();
 
     const { data: issue } = await admin
       .from('issues')
@@ -116,6 +101,6 @@ export async function GET(
     });
   } catch (err) {
     console.error('[PDF DOWNLOAD ERROR]', { issueId, error: err });
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ error: 'Configuration Storage serveur manquante' }, { status: 500 });
   }
 }

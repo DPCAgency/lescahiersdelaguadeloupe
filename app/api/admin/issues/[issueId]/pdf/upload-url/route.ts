@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/auth/admin';
 import { getRequiredServiceRoleClient } from '@/lib/supabase/server';
 
@@ -7,15 +6,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
-
-function userClient(token: string) {
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, key, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 export async function POST(req: NextRequest, { params }: { params: { issueId: string } }) {
   const user = await requireAdmin(req);
@@ -41,30 +31,13 @@ export async function POST(req: NextRequest, { params }: { params: { issueId: st
   }
 
   try {
+    const admin = getRequiredServiceRoleClient();
     const timestamp = Date.now();
     const filePath = `issues/${params.issueId}/${timestamp}-issue.pdf`;
 
-    // Try service role first, fall back to user token for RLS-authenticated access
-    let data: { signedUrl: string; path: string; token?: string } | null = null;
-    let error: { message: string } | null = null;
-
-    try {
-      const admin = getRequiredServiceRoleClient();
-      const result = await admin.storage
-        .from('issues-private')
-        .createSignedUploadUrl(filePath);
-      data = result.data;
-      error = result.error;
-    } catch {
-      // Service role not available — use user token (RLS allows admin write)
-      const token = req.cookies.get('sb-access-token')!.value;
-      const client = userClient(token);
-      const result = await client.storage
-        .from('issues-private')
-        .createSignedUploadUrl(filePath);
-      data = result.data;
-      error = result.error;
-    }
+    const { data, error } = await admin.storage
+      .from('issues-private')
+      .createSignedUploadUrl(filePath);
 
     if (error || !data) {
       console.error('[PDF UPLOAD URL]', { issueId: params.issueId, message: error?.message });
@@ -79,6 +52,6 @@ export async function POST(req: NextRequest, { params }: { params: { issueId: st
     });
   } catch (err) {
     console.error('[PDF UPLOAD URL]', { issueId: params.issueId, error: err });
-    return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 });
+    return NextResponse.json({ success: false, error: 'Configuration Storage serveur manquante' }, { status: 500 });
   }
 }
