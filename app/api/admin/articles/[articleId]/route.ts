@@ -36,7 +36,12 @@ export async function GET(req: NextRequest, { params }: { params: { articleId: s
     .eq('article_id', params.articleId)
     .order('position', { ascending: true });
 
-  return NextResponse.json({ ...article, blocks: blocks ?? [] });
+  const { data: territories } = await client
+    .from('article_territories')
+    .select('territory_id')
+    .eq('article_id', params.articleId);
+
+  return NextResponse.json({ ...article, blocks: blocks ?? [], territory_ids: (territories ?? []).map((t) => t.territory_id) });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { articleId: string } }) {
@@ -83,6 +88,31 @@ export async function PATCH(req: NextRequest, { params }: { params: { articleId:
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Replace blocks if provided
+  if (Array.isArray(body.blocks)) {
+    await client.from('article_blocks').delete().eq('article_id', params.articleId);
+    if (body.blocks.length > 0) {
+      const blockInserts = (body.blocks as Array<Record<string, unknown>>).map((b) => ({
+        article_id: params.articleId,
+        type: b.type,
+        position: b.position,
+        content_json: b.content_json ?? {},
+        source_block_id: b.source_block_id ?? null,
+      }));
+      await client.from('article_blocks').insert(blockInserts);
+    }
+  }
+
+  // Replace territories if provided
+  if (Array.isArray(body.territory_ids)) {
+    await client.from('article_territories').delete().eq('article_id', params.articleId);
+    if (body.territory_ids.length > 0) {
+      await client.from('article_territories').insert(
+        (body.territory_ids as string[]).map((territory_id) => ({ article_id: params.articleId, territory_id })),
+      );
+    }
+  }
 
   // Create revision snapshot
   await client.from('content_revisions').insert({

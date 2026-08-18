@@ -1,20 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase/client';
 import {
-  Save,
-  Loader2,
-  Plus,
-  Trash2,
-  ChevronUp,
-  ChevronDown,
-  Eye,
-  ArrowLeft,
-  GripVertical,
-  GitCompare,
+  Save, Loader2, Plus, Trash2, ChevronUp, ChevronDown, Eye,
+  ArrowLeft, GripVertical, GitCompare, Upload, AlertCircle,
 } from 'lucide-react';
+import { RichTextEditor } from './rich-text-editor';
+import { RichTextRenderer } from '@/components/editorial/rich-text-renderer';
 
 interface ArticleBlock {
   id?: string;
@@ -22,6 +15,8 @@ interface ArticleBlock {
   position: number;
   content_json: Record<string, unknown> | null;
 }
+
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 const blockTypes = [
   { value: 'paragraph', label: 'Texte' },
@@ -55,6 +50,7 @@ const blockColors: Record<string, string> = {
 const statusOptions = [
   { value: 'draft', label: 'Brouillon' },
   { value: 'review', label: 'En revue' },
+  { value: 'ready', label: 'Prêt' },
   { value: 'scheduled', label: 'Programmé' },
   { value: 'published', label: 'Publié' },
   { value: 'archived', label: 'Archivé' },
@@ -71,6 +67,18 @@ const formatOptions = [
   { value: 'dossier', label: 'Dossier' },
 ];
 
+function countWords(json: unknown): number {
+  if (!json || typeof json !== 'object') return 0;
+  const node = json as { type?: string; text?: string; content?: unknown[] };
+  if (node.type === 'text' && node.text) {
+    return node.text.trim().split(/\s+/).filter(Boolean).length;
+  }
+  if (node.content) {
+    return node.content.reduce<number>((sum, c) => sum + countWords(c), 0);
+  }
+  return 0;
+}
+
 export default function ArticleEditorClient({
   articleId,
   categories,
@@ -84,12 +92,16 @@ export default function ArticleEditorClient({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(articleId !== 'new');
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<SaveState>('idle');
   const [showBlockMenu, setShowBlockMenu] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [compareMode, setCompareMode] = useState(false);
+  const [showSeo, setShowSeo] = useState(false);
   const [sourceBlocks, setSourceBlocks] = useState<{ id: string; page_number: number; type: string; source_text: string | null; edited_text: string | null }[]>([]);
   const [sourceInfo, setSourceInfo] = useState<{ issue_number: string; title: string; page_start: number; page_end: number } | null>(null);
+  const [currentId, setCurrentId] = useState(articleId);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [article, setArticle] = useState({
     title: '',
@@ -113,110 +125,81 @@ export default function ArticleEditorClient({
   const [blocks, setBlocks] = useState<ArticleBlock[]>([]);
   const [selectedTerritories, setSelectedTerritories] = useState<Set<string>>(new Set());
 
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDirty = useRef(false);
+  const currentIdRef = useRef(articleId);
+
   const loadArticle = useCallback(async () => {
     if (articleId === 'new') {
       setLoading(false);
       return;
     }
-    const { data: art } = await supabase
-      .from('articles')
-      .select('*')
-      .eq('id', articleId)
-      .maybeSingle();
-    if (art) {
+    const resp = await fetch(`/api/admin/articles/${articleId}`, { credentials: 'same-origin' });
+    if (resp.ok) {
+      const d = await resp.json() as Record<string, unknown>;
       setArticle({
-        title: art.title ?? '',
-        slug: art.slug ?? '',
-        subtitle: art.subtitle ?? '',
-        excerpt: art.excerpt ?? '',
-        format: art.format ?? 'analyse',
-        category_id: art.category_id ?? '',
-        author_id: art.author_id ?? '',
-        hero_image_path: art.hero_image_path ?? '',
-        hero_caption: art.hero_caption ?? '',
-        hero_credit: art.hero_credit ?? '',
-        status: art.status ?? 'draft',
-        featured: art.featured ?? false,
-        published_at: art.published_at ? new Date(art.published_at).toISOString().slice(0, 16) : '',
-        seo_title: art.seo_title ?? '',
-        seo_description: art.seo_description ?? '',
-        social_image_path: art.social_image_path ?? '',
-        reading_time_minutes: art.reading_time_minutes?.toString() ?? '',
+        title: (d.title as string) ?? '',
+        slug: (d.slug as string) ?? '',
+        subtitle: (d.subtitle as string) ?? '',
+        excerpt: (d.excerpt as string) ?? '',
+        format: (d.format as string) ?? 'analyse',
+        category_id: (d.category_id as string) ?? '',
+        author_id: (d.author_id as string) ?? '',
+        hero_image_path: (d.hero_image_path as string) ?? '',
+        hero_caption: (d.hero_caption as string) ?? '',
+        hero_credit: (d.hero_credit as string) ?? '',
+        status: (d.status as string) ?? 'draft',
+        featured: (d.featured as boolean) ?? false,
+        published_at: d.published_at ? new Date(d.published_at as string).toISOString().slice(0, 16) : '',
+        seo_title: (d.seo_title as string) ?? '',
+        seo_description: (d.seo_description as string) ?? '',
+        social_image_path: (d.social_image_path as string) ?? '',
+        reading_time_minutes: (d.reading_time_minutes as number)?.toString() ?? '',
       });
+      const blks = (d.blocks as Array<Record<string, unknown>>) ?? [];
+      setBlocks(blks.map((b) => ({
+        id: b.id as string,
+        type: b.type as string,
+        position: b.position as number,
+        content_json: (b.content_json ?? {}) as Record<string, unknown>,
+      })));
+      const terrIds = (d.territory_ids as string[]) ?? [];
+      setSelectedTerritories(new Set(terrIds));
     }
-    const { data: blks } = await supabase
-      .from('article_blocks')
-      .select('*')
-      .eq('article_id', articleId)
-      .order('position', { ascending: true });
-    setBlocks((blks ?? []).map((b) => ({ ...b })));
-    const { data: terr } = await supabase
-      .from('article_territories')
-      .select('territory_id')
-      .eq('article_id', articleId);
-    setSelectedTerritories(new Set((terr ?? []).map((t) => t.territory_id)));
-
-    // Load source info from article_issue_sources
-    const { data: sourceLink } = await supabase
-      .from('article_issue_sources')
-      .select('issue_id, page_start, page_end, source_notes')
-      .eq('article_id', articleId)
-      .maybeSingle();
-    if (sourceLink) {
-      const { data: issue } = await supabase
-        .from('issues')
-        .select('issue_number, title')
-        .eq('id', sourceLink.issue_id)
-        .maybeSingle();
-      if (issue) {
-        setSourceInfo({
-          issue_number: issue.issue_number,
-          title: issue.title,
-          page_start: sourceLink.page_start,
-          page_end: sourceLink.page_end,
-        });
-      }
-      // Load source blocks from article_blocks content_json
-      const { data: blks2 } = await supabase
-        .from('article_blocks')
-        .select('type, content_json')
-        .eq('article_id', articleId)
-        .order('position', { ascending: true });
-      const srcBlocks: { id: string; page_number: number; type: string; source_text: string | null; edited_text: string | null }[] = [];
-      (blks2 ?? []).forEach((b) => {
-        const cj = b.content_json as Record<string, unknown> | null;
-        if (cj?.source_block_id) {
-          srcBlocks.push({
-            id: cj.source_block_id as string,
-            page_number: cj.source_page as number,
-            type: b.type,
-            source_text: (cj.text as string) ?? null,
-            edited_text: (cj.text as string) ?? null,
-          });
-        }
-      });
-      setSourceBlocks(srcBlocks);
-    }
-
     setLoading(false);
   }, [articleId]);
 
+  useEffect(() => { loadArticle(); }, [loadArticle]);
+
+  // Unsaved changes warning
   useEffect(() => {
-    loadArticle();
-  }, [loadArticle]);
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
+  const markDirty = useCallback(() => {
+    isDirty.current = true;
+    setSaveState('idle');
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { doSave(false); }, 1500);
+  }, []);
 
   const updateField = (field: string, value: string | boolean) => {
     setArticle((prev) => ({ ...prev, [field]: value }));
+    markDirty();
   };
 
   const addBlock = (type: string) => {
-    const newBlock: ArticleBlock = {
-      type,
-      position: blocks.length,
-      content_json: {},
-    };
+    const newBlock: ArticleBlock = { type, position: blocks.length, content_json: {} };
     setBlocks([...blocks, newBlock]);
     setShowBlockMenu(false);
+    markDirty();
   };
 
   const updateBlockContent = (index: number, key: string, value: unknown) => {
@@ -226,6 +209,7 @@ export default function ArticleEditorClient({
         return { ...b, content_json: { ...(b.content_json ?? {}), [key]: value } };
       }),
     );
+    markDirty();
   };
 
   const moveBlock = (index: number, direction: 'up' | 'down') => {
@@ -235,12 +219,14 @@ export default function ArticleEditorClient({
     [newBlocks[index], newBlocks[swapIndex]] = [newBlocks[swapIndex], newBlocks[index]];
     newBlocks.forEach((b, i) => (b.position = i));
     setBlocks(newBlocks);
+    markDirty();
   };
 
   const deleteBlock = (index: number) => {
     const newBlocks = blocks.filter((_, i) => i !== index);
     newBlocks.forEach((b, i) => (b.position = i));
     setBlocks(newBlocks);
+    markDirty();
   };
 
   const toggleTerritory = (id: string) => {
@@ -250,71 +236,132 @@ export default function ArticleEditorClient({
       else next.add(id);
       return next;
     });
+    markDirty();
   };
 
-  const handleSave = async () => {
-    setSaving(true);
+  const doSave = useCallback(async (manual: boolean) => {
+    const id = currentIdRef.current;
+    if (id === 'new') {
+      // Create first
+      setSaveState('saving');
+      try {
+        const slug = article.slug || article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const createResp = await fetch('/api/admin/articles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            title: article.title || 'Sans titre',
+            subtitle: article.subtitle || null,
+            excerpt: article.excerpt || null,
+            format: article.format,
+            category_id: article.category_id || null,
+            author_id: article.author_id || null,
+            hero_image_path: article.hero_image_path || null,
+            hero_caption: article.hero_caption || null,
+            hero_credit: article.hero_credit || null,
+            status: article.status,
+            featured: article.featured,
+          }),
+        });
+        if (!createResp.ok) throw new Error('Création échouée');
+        const created = await createResp.json() as { id: string };
+        currentIdRef.current = created.id;
+        setCurrentId(created.id);
+        // Now save blocks + territories via PATCH
+        const patchResp = await fetch(`/api/admin/articles/${created.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            blocks: blocks.map((b, i) => ({ type: b.type, position: i, content_json: b.content_json })),
+            territory_ids: Array.from(selectedTerritories),
+            seo_title: article.seo_title || null,
+            seo_description: article.seo_description || null,
+            social_image_path: article.social_image_path || null,
+            reading_time_minutes: totalWords > 0 ? Math.max(1, Math.ceil(totalWords / 200)) : null,
+          }),
+        });
+        if (!patchResp.ok) throw new Error('Sauvegarde blocs échouée');
+        isDirty.current = false;
+        setSaveState('saved');
+        router.push(`/admin/articles/${created.id}`);
+      } catch {
+        setSaveState('error');
+      }
+      return;
+    }
+
+    setSaveState('saving');
     try {
       const slug = article.slug || article.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const payload = {
-        title: article.title || 'Sans titre',
-        slug,
-        subtitle: article.subtitle || null,
-        excerpt: article.excerpt || null,
-        format: article.format,
-        category_id: article.category_id || null,
-        author_id: article.author_id || null,
-        hero_image_path: article.hero_image_path || null,
-        hero_caption: article.hero_caption || null,
-        hero_credit: article.hero_credit || null,
-        status: article.status,
-        featured: article.featured,
-        published_at: article.status === 'published' && !article.published_at ? new Date().toISOString() : (article.published_at || null),
-        seo_title: article.seo_title || null,
-        seo_description: article.seo_description || null,
-        social_image_path: article.social_image_path || null,
-        reading_time_minutes: article.reading_time_minutes ? parseInt(article.reading_time_minutes) : null,
-      };
-
-      let id = articleId;
-      if (articleId === 'new') {
-        const { data: newArt, error } = await supabase.from('articles').insert(payload).select('id').single();
-        if (error) throw error;
-        id = newArt.id;
-      } else {
-        const { error } = await supabase.from('articles').update(payload).eq('id', articleId);
-        if (error) throw error;
-      }
-
-      // Save blocks
-      const existingBlockIds = blocks.filter((b) => b.id).map((b) => b.id);
-      await supabase.from('article_blocks').delete().eq('article_id', id);
-      if (blocks.length > 0) {
-        const blockInserts = blocks.map((b, i) => ({
-          article_id: id,
-          type: b.type,
-          position: i,
-          content_json: b.content_json,
-        }));
-        await supabase.from('article_blocks').insert(blockInserts);
-      }
-
-      // Save territories
-      await supabase.from('article_territories').delete().eq('article_id', id);
-      if (selectedTerritories.size > 0) {
-        await supabase.from('article_territories').insert(
-          Array.from(selectedTerritories).map((territory_id) => ({ article_id: id, territory_id })),
-        );
-      }
-
-      if (articleId === 'new') {
-        router.push(`/admin/articles/${id}`);
-      }
-    } catch (err) {
-      alert(`Erreur: ${err instanceof Error ? err.message : 'Inconnue'}`);
+      const resp = await fetch(`/api/admin/articles/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          title: article.title || 'Sans titre',
+          slug,
+          subtitle: article.subtitle || null,
+          excerpt: article.excerpt || null,
+          format: article.format,
+          category_id: article.category_id || null,
+          author_id: article.author_id || null,
+          hero_image_path: article.hero_image_path || null,
+          hero_caption: article.hero_caption || null,
+          hero_credit: article.hero_credit || null,
+          status: article.status,
+          featured: article.featured,
+          published_at: article.published_at || null,
+          seo_title: article.seo_title || null,
+          seo_description: article.seo_description || null,
+          social_image_path: article.social_image_path || null,
+          reading_time_minutes: totalWords > 0 ? Math.max(1, Math.ceil(totalWords / 200)) : null,
+          blocks: blocks.map((b, i) => ({ type: b.type, position: i, content_json: b.content_json })),
+          territory_ids: Array.from(selectedTerritories),
+        }),
+      });
+      if (!resp.ok) throw new Error('Sauvegarde échouée');
+      isDirty.current = false;
+      setSaveState('saved');
+    } catch {
+      setSaveState('error');
     }
-    setSaving(false);
+  }, [article, blocks, selectedTerritories, router]);
+
+  const handleSave = () => { doSave(true); };
+
+  const handleHeroUpload = async (file: File) => {
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const resp = await fetch('/api/admin/media/upload', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData,
+      });
+      if (!resp.ok) {
+        const d = await resp.json() as { error?: string };
+        throw new Error(d.error ?? 'Upload échoué');
+      }
+      const data = await resp.json() as { url: string };
+      updateField('hero_image_path', data.url);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Erreur');
+    }
+    setUploading(false);
   };
+
+  // Word count
+  const totalWords = blocks.reduce((sum, b) => {
+    const c = b.content_json ?? {};
+    if (c.richContent) return sum + countWords(c.richContent);
+    if (c.text) return sum + (c.text as string).trim().split(/\s+/).filter(Boolean).length;
+    return sum;
+  }, 0);
+  const readingTime = totalWords > 0 ? Math.max(1, Math.ceil(totalWords / 200)) : 0;
 
   if (loading) {
     return (
@@ -336,8 +383,12 @@ export default function ArticleEditorClient({
             <ArrowLeft className="h-4 w-4" />
           </button>
           <h2 className="font-display text-2xl font-bold text-neutral-800">
-            {articleId === 'new' ? 'Nouvel article' : 'Modifier l\'article'}
+            {currentId === 'new' ? 'Nouvel article' : 'Modifier l\'article'}
           </h2>
+          <SaveIndicator state={saveState} onRetry={handleSave} />
+          {totalWords > 0 && (
+            <span className="text-xs text-neutral-400">{totalWords} mots · {readingTime} min</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {sourceBlocks.length > 0 && (
@@ -358,10 +409,10 @@ export default function ArticleEditorClient({
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saveState === 'saving'}
             className="flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/90 disabled:opacity-50"
           >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saveState === 'saving' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Enregistrer
           </button>
         </div>
@@ -383,9 +434,7 @@ export default function ArticleEditorClient({
               <div className="space-y-3">
                 {sourceBlocks.map((src, i) => (
                   <div key={i} className="rounded border border-neutral-100 bg-neutral-50 p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{src.type} · P{src.page_number}</span>
-                    </div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{src.type} · P{src.page_number}</span>
                     <p className="mt-1 text-xs text-neutral-500">{src.source_text ?? '—'}</p>
                   </div>
                 ))}
@@ -397,9 +446,7 @@ export default function ArticleEditorClient({
               <div className="space-y-3">
                 {blocks.map((block, i) => (
                   <div key={i} className="rounded border border-neutral-100 bg-white p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{block.type}</span>
-                    </div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{block.type}</span>
                     <p className="mt-1 text-xs text-neutral-600">{String(block.content_json?.text ?? '')}</p>
                   </div>
                 ))}
@@ -413,6 +460,14 @@ export default function ArticleEditorClient({
           <article className="mx-auto max-w-2xl">
             <h1 className="font-display text-3xl font-bold text-neutral-800">{article.title || 'Titre non défini'}</h1>
             {article.subtitle && <p className="mt-2 text-lg text-neutral-500">{article.subtitle}</p>}
+            {article.excerpt && <p className="mt-4 text-base italic text-neutral-600">{article.excerpt}</p>}
+            {article.hero_image_path && (
+              <figure className="mt-6">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={article.hero_image_path} alt={article.hero_caption ?? ''} className="w-full rounded-lg" />
+                {article.hero_caption && <figcaption className="mt-2 text-xs text-neutral-400">{article.hero_caption}{article.hero_credit ? ` — © ${article.hero_credit}` : ''}</figcaption>}
+              </figure>
+            )}
             <div className="mt-8 space-y-4">
               {blocks.map((block, i) => (
                 <BlockPreview key={i} block={block} />
@@ -428,38 +483,16 @@ export default function ArticleEditorClient({
               <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Informations principales</h3>
               <div className="space-y-4">
                 <Field label="Titre">
-                  <input
-                    type="text"
-                    value={article.title}
-                    onChange={(e) => updateField('title', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                    placeholder="Titre de l'article"
-                  />
+                  <input type="text" value={article.title} onChange={(e) => updateField('title', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="Titre de l'article" />
                 </Field>
                 <Field label="Slug (URL)">
-                  <input
-                    type="text"
-                    value={article.slug}
-                    onChange={(e) => updateField('slug', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                    placeholder="auto-généré si vide"
-                  />
+                  <input type="text" value={article.slug} onChange={(e) => updateField('slug', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="auto-généré si vide" />
                 </Field>
                 <Field label="Sous-titre">
-                  <input
-                    type="text"
-                    value={article.subtitle}
-                    onChange={(e) => updateField('subtitle', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  />
+                  <input type="text" value={article.subtitle} onChange={(e) => updateField('subtitle', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
                 </Field>
                 <Field label="Chapô (extrait)">
-                  <textarea
-                    value={article.excerpt}
-                    onChange={(e) => updateField('excerpt', e.target.value)}
-                    rows={2}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  />
+                  <textarea value={article.excerpt} onChange={(e) => updateField('excerpt', e.target.value)} rows={2} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
                 </Field>
               </div>
             </div>
@@ -468,23 +501,15 @@ export default function ArticleEditorClient({
             <div className="rounded-lg border border-neutral-200 bg-white p-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Contenu de l'article</h3>
-                <button
-                  onClick={() => setShowBlockMenu(!showBlockMenu)}
-                  className="flex items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 text-xs font-medium text-white hover:bg-ink/90"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Ajouter un bloc
+                <button onClick={() => setShowBlockMenu(!showBlockMenu)} className="flex items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 text-xs font-medium text-white hover:bg-ink/90">
+                  <Plus className="h-3.5 w-3.5" /> Ajouter un bloc
                 </button>
               </div>
 
               {showBlockMenu && (
                 <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3 sm:grid-cols-3">
                   {blockTypes.map((bt) => (
-                    <button
-                      key={bt.value}
-                      onClick={() => addBlock(bt.value)}
-                      className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 hover:border-ink hover:text-ink"
-                    >
+                    <button key={bt.value} onClick={() => addBlock(bt.value)} className="rounded-md border border-neutral-200 bg-white px-3 py-2 text-xs font-medium text-neutral-600 hover:border-ink hover:text-ink">
                       {bt.label}
                     </button>
                   ))}
@@ -493,34 +518,19 @@ export default function ArticleEditorClient({
 
               <div className="mt-4 space-y-3">
                 {blocks.length === 0 && (
-                  <p className="py-8 text-center text-sm text-neutral-400">
-                    Aucun bloc. Cliquez sur « Ajouter un bloc » pour commencer.
-                  </p>
+                  <p className="py-8 text-center text-sm text-neutral-400">Aucun bloc. Cliquez sur « Ajouter un bloc » pour commencer.</p>
                 )}
                 {blocks.map((block, index) => (
-                  <div
-                    key={index}
-                    className={`rounded-lg border border-neutral-200 border-l-4 bg-white p-4 ${
-                      blockColors[block.type] ?? 'border-l-neutral-300'
-                    }`}
-                  >
+                  <div key={index} className={`rounded-lg border border-neutral-200 border-l-4 bg-white p-4 ${blockColors[block.type] ?? 'border-l-neutral-300'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <GripVertical className="h-4 w-4 text-neutral-300" />
-                        <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                          {blockTypes.find((bt) => bt.value === block.type)?.label ?? block.type}
-                        </span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{blockTypes.find((bt) => bt.value === block.type)?.label ?? block.type}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => moveBlock(index, 'up')} disabled={index === 0} className="rounded p-1 text-neutral-400 hover:bg-neutral-100 disabled:opacity-30">
-                          <ChevronUp className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={() => moveBlock(index, 'down')} disabled={index === blocks.length - 1} className="rounded p-1 text-neutral-400 hover:bg-neutral-100 disabled:opacity-30">
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={() => deleteBlock(index)} className="rounded p-1 text-red-400 hover:bg-red-50">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <button onClick={() => moveBlock(index, 'up')} disabled={index === 0} className="rounded p-1 text-neutral-400 hover:bg-neutral-100 disabled:opacity-30"><ChevronUp className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => moveBlock(index, 'down')} disabled={index === blocks.length - 1} className="rounded p-1 text-neutral-400 hover:bg-neutral-100 disabled:opacity-30"><ChevronDown className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => deleteBlock(index)} className="rounded p-1 text-red-400 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </div>
                     <BlockEditor block={block} index={index} onUpdate={updateBlockContent} />
@@ -536,75 +546,33 @@ export default function ArticleEditorClient({
               <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Publication</h3>
               <div className="space-y-4">
                 <Field label="Statut">
-                  <select
-                    value={article.status}
-                    onChange={(e) => updateField('status', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  >
-                    {statusOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
+                  <select value={article.status} onChange={(e) => updateField('status', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                    {statusOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </select>
                 </Field>
                 <Field label="Format">
-                  <select
-                    value={article.format}
-                    onChange={(e) => updateField('format', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  >
-                    {formatOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
+                  <select value={article.format} onChange={(e) => updateField('format', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                    {formatOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </select>
                 </Field>
                 <Field label="Catégorie">
-                  <select
-                    value={article.category_id}
-                    onChange={(e) => updateField('category_id', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  >
+                  <select value={article.category_id} onChange={(e) => updateField('category_id', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
                     <option value="">—</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
+                    {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                   </select>
                 </Field>
                 <Field label="Auteur">
-                  <select
-                    value={article.author_id}
-                    onChange={(e) => updateField('author_id', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  >
+                  <select value={article.author_id} onChange={(e) => updateField('author_id', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
                     <option value="">—</option>
-                    {authors.map((auth) => (
-                      <option key={auth.id} value={auth.id}>{auth.name}</option>
-                    ))}
+                    {authors.map((auth) => <option key={auth.id} value={auth.id}>{auth.name}</option>)}
                   </select>
                 </Field>
                 <label className="flex items-center gap-2 text-sm text-neutral-600">
-                  <input
-                    type="checkbox"
-                    checked={article.featured}
-                    onChange={(e) => updateField('featured', e.target.checked)}
-                    className="h-4 w-4 accent-ink"
-                  />
+                  <input type="checkbox" checked={article.featured} onChange={(e) => updateField('featured', e.target.checked)} className="h-4 w-4 accent-ink" />
                   Article à la Une
                 </label>
                 <Field label="Date de publication">
-                  <input
-                    type="datetime-local"
-                    value={article.published_at}
-                    onChange={(e) => updateField('published_at', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  />
-                </Field>
-                <Field label="Temps de lecture (min)">
-                  <input
-                    type="number"
-                    value={article.reading_time_minutes}
-                    onChange={(e) => updateField('reading_time_minutes', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  />
+                  <input type="datetime-local" value={article.published_at} onChange={(e) => updateField('published_at', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
                 </Field>
               </div>
             </div>
@@ -614,12 +582,7 @@ export default function ArticleEditorClient({
               <div className="space-y-2">
                 {territories.map((terr) => (
                   <label key={terr.id} className="flex items-center gap-2 text-sm text-neutral-600">
-                    <input
-                      type="checkbox"
-                      checked={selectedTerritories.has(terr.id)}
-                      onChange={() => toggleTerritory(terr.id)}
-                      className="h-4 w-4 accent-ink"
-                    />
+                    <input type="checkbox" checked={selectedTerritories.has(terr.id)} onChange={() => toggleTerritory(terr.id)} className="h-4 w-4 accent-ink" />
                     {terr.name}
                   </label>
                 ))}
@@ -629,68 +592,65 @@ export default function ArticleEditorClient({
             <div className="rounded-lg border border-neutral-200 bg-white p-5">
               <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Image principale</h3>
               <div className="space-y-4">
-                <Field label="URL de l'image">
-                  <input
-                    type="text"
-                    value={article.hero_image_path}
-                    onChange={(e) => updateField('hero_image_path', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                    placeholder="/assets/..."
-                  />
+                {article.hero_image_path && (
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={article.hero_image_path} alt="Aperçu" className="w-full rounded-lg" />
+                  </div>
+                )}
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-neutral-200 px-3 py-4 text-sm text-neutral-500 hover:bg-neutral-50">
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {uploading ? 'Upload...' : 'Téléverser une image'}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleHeroUpload(f); }} />
+                </label>
+                {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
+                <Field label="Ou URL de l'image">
+                  <input type="text" value={article.hero_image_path} onChange={(e) => updateField('hero_image_path', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="/assets/..." />
                 </Field>
                 <Field label="Légende">
-                  <input
-                    type="text"
-                    value={article.hero_caption}
-                    onChange={(e) => updateField('hero_caption', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  />
+                  <input type="text" value={article.hero_caption} onChange={(e) => updateField('hero_caption', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
                 </Field>
                 <Field label="Crédit">
-                  <input
-                    type="text"
-                    value={article.hero_credit}
-                    onChange={(e) => updateField('hero_credit', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  />
+                  <input type="text" value={article.hero_credit} onChange={(e) => updateField('hero_credit', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
                 </Field>
               </div>
             </div>
 
             <div className="rounded-lg border border-neutral-200 bg-white p-5">
-              <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">SEO</h3>
-              <div className="space-y-4">
-                <Field label="Titre SEO">
-                  <input
-                    type="text"
-                    value={article.seo_title}
-                    onChange={(e) => updateField('seo_title', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  />
-                </Field>
-                <Field label="Description SEO">
-                  <textarea
-                    value={article.seo_description}
-                    onChange={(e) => updateField('seo_description', e.target.value)}
-                    rows={2}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  />
-                </Field>
-                <Field label="Image sociale (URL)">
-                  <input
-                    type="text"
-                    value={article.social_image_path}
-                    onChange={(e) => updateField('social_image_path', e.target.value)}
-                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
-                  />
-                </Field>
-              </div>
+              <button onClick={() => setShowSeo(!showSeo)} className="flex w-full items-center justify-between font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">
+                SEO
+                <ChevronDown className={`h-4 w-4 transition-transform ${showSeo ? 'rotate-180' : ''}`} />
+              </button>
+              {showSeo && (
+                <div className="mt-4 space-y-4">
+                  <Field label="Titre SEO">
+                    <input type="text" value={article.seo_title} onChange={(e) => updateField('seo_title', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
+                  </Field>
+                  <Field label="Description SEO">
+                    <textarea value={article.seo_description} onChange={(e) => updateField('seo_description', e.target.value)} rows={2} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
+                  </Field>
+                  <Field label="Image sociale (URL)">
+                    <input type="text" value={article.social_image_path} onChange={(e) => updateField('social_image_path', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
+                  </Field>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+function SaveIndicator({ state, onRetry }: { state: SaveState; onRetry: () => void }) {
+  if (state === 'saving') return <span className="text-xs text-neutral-400">Enregistrement...</span>;
+  if (state === 'saved') return <span className="text-xs text-green-500">✓ Enregistré</span>;
+  if (state === 'error') return (
+    <button onClick={onRetry} className="flex items-center gap-1 text-xs text-red-500 hover:underline">
+      <AlertCircle className="h-3 w-3" /> Erreur — Réessayer
+    </button>
+  );
+  return <span className="text-xs text-amber-500">● Modifications</span>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -703,9 +663,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function BlockEditor({
-  block,
-  index,
-  onUpdate,
+  block, index, onUpdate,
 }: {
   block: ArticleBlock;
   index: number;
@@ -713,54 +671,35 @@ function BlockEditor({
 }) {
   const content = block.content_json ?? {};
   const type = block.type;
-
   const inputClass = 'mt-2 w-full rounded border border-neutral-200 px-2.5 py-1.5 text-sm';
 
-  if (type === 'paragraph' || type === 'analysis' || type === 'fact' || type === 'testimony' || type === 'hypothesis' || type === 'open_question' || type === 'sidebar' || type === 'source') {
+  if (type === 'paragraph') {
+    return (
+      <div className="mt-2">
+        <RichTextEditor
+          content={content.richContent ?? content.text ?? ''}
+          onChange={(json) => onUpdate(index, 'richContent', json)}
+          editable
+        />
+      </div>
+    );
+  }
+
+  if (type === 'analysis' || type === 'fact' || type === 'testimony' || type === 'hypothesis' || type === 'open_question' || type === 'sidebar' || type === 'source') {
     return (
       <div>
-        <textarea
-          value={(content.text as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'text', e.target.value)}
-          rows={4}
-          className={inputClass}
-          placeholder="Texte du bloc…"
-        />
+        <textarea value={(content.text as string) ?? ''} onChange={(e) => onUpdate(index, 'text', e.target.value)} rows={4} className={inputClass} placeholder="Texte du bloc…" />
         {(type === 'fact' || type === 'source') && (
-          <input
-            type="text"
-            value={(content.source as string) ?? ''}
-            onChange={(e) => onUpdate(index, 'source', e.target.value)}
-            className={inputClass}
-            placeholder="Source…"
-          />
+          <input type="text" value={(content.source as string) ?? ''} onChange={(e) => onUpdate(index, 'source', e.target.value)} className={inputClass} placeholder="Source…" />
         )}
         {type === 'testimony' && (
           <>
-            <input
-              type="text"
-              value={(content.identity as string) ?? ''}
-              onChange={(e) => onUpdate(index, 'identity', e.target.value)}
-              className={inputClass}
-              placeholder="Identité affichée (ou « anonymisé »)…"
-            />
-            <input
-              type="text"
-              value={(content.context as string) ?? ''}
-              onChange={(e) => onUpdate(index, 'context', e.target.value)}
-              className={inputClass}
-              placeholder="Contexte…"
-            />
+            <input type="text" value={(content.identity as string) ?? ''} onChange={(e) => onUpdate(index, 'identity', e.target.value)} className={inputClass} placeholder="Identité affichée…" />
+            <input type="text" value={(content.context as string) ?? ''} onChange={(e) => onUpdate(index, 'context', e.target.value)} className={inputClass} placeholder="Contexte…" />
           </>
         )}
         {type === 'open_question' && (
-          <input
-            type="text"
-            value={(content.context as string) ?? ''}
-            onChange={(e) => onUpdate(index, 'context', e.target.value)}
-            className={inputClass}
-            placeholder="Contexte de la question…"
-          />
+          <input type="text" value={(content.context as string) ?? ''} onChange={(e) => onUpdate(index, 'context', e.target.value)} className={inputClass} placeholder="Contexte de la question…" />
         )}
       </div>
     );
@@ -769,21 +708,8 @@ function BlockEditor({
   if (type === 'heading') {
     return (
       <div className="flex gap-2">
-        <input
-          type="number"
-          value={(content.level as number) ?? 2}
-          onChange={(e) => onUpdate(index, 'level', parseInt(e.target.value) || 2)}
-          className="w-16 rounded border border-neutral-200 px-2 py-1.5 text-sm"
-          min={1}
-          max={6}
-        />
-        <input
-          type="text"
-          value={(content.heading as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'heading', e.target.value)}
-          className="flex-1 rounded border border-neutral-200 px-2.5 py-1.5 text-sm"
-          placeholder="Titre…"
-        />
+        <input type="number" value={(content.level as number) ?? 2} onChange={(e) => onUpdate(index, 'level', parseInt(e.target.value) || 2)} className="w-16 rounded border border-neutral-200 px-2 py-1.5 text-sm" min={1} max={6} />
+        <input type="text" value={(content.heading as string) ?? ''} onChange={(e) => onUpdate(index, 'heading', e.target.value)} className="flex-1 rounded border border-neutral-200 px-2.5 py-1.5 text-sm" placeholder="Titre…" />
       </div>
     );
   }
@@ -791,34 +717,10 @@ function BlockEditor({
   if (type === 'image') {
     return (
       <div>
-        <input
-          type="text"
-          value={(content.image_path as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'image_path', e.target.value)}
-          className={inputClass}
-          placeholder="URL de l'image…"
-        />
-        <input
-          type="text"
-          value={(content.alt as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'alt', e.target.value)}
-          className={inputClass}
-          placeholder="Texte alternatif…"
-        />
-        <input
-          type="text"
-          value={(content.caption as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'caption', e.target.value)}
-          className={inputClass}
-          placeholder="Légende…"
-        />
-        <input
-          type="text"
-          value={(content.credit as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'credit', e.target.value)}
-          className={inputClass}
-          placeholder="Crédit…"
-        />
+        <input type="text" value={(content.image_path as string) ?? ''} onChange={(e) => onUpdate(index, 'image_path', e.target.value)} className={inputClass} placeholder="URL de l'image…" />
+        <input type="text" value={(content.alt as string) ?? ''} onChange={(e) => onUpdate(index, 'alt', e.target.value)} className={inputClass} placeholder="Texte alternatif…" />
+        <input type="text" value={(content.caption as string) ?? ''} onChange={(e) => onUpdate(index, 'caption', e.target.value)} className={inputClass} placeholder="Légende…" />
+        <input type="text" value={(content.credit as string) ?? ''} onChange={(e) => onUpdate(index, 'credit', e.target.value)} className={inputClass} placeholder="Crédit…" />
       </div>
     );
   }
@@ -826,27 +728,9 @@ function BlockEditor({
   if (type === 'quote') {
     return (
       <div>
-        <textarea
-          value={(content.quote as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'quote', e.target.value)}
-          rows={3}
-          className={inputClass}
-          placeholder="Citation…"
-        />
-        <input
-          type="text"
-          value={(content.author as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'author', e.target.value)}
-          className={inputClass}
-          placeholder="Auteur de la citation…"
-        />
-        <input
-          type="text"
-          value={(content.role as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'role', e.target.value)}
-          className={inputClass}
-          placeholder="Fonction…"
-        />
+        <textarea value={(content.quote as string) ?? ''} onChange={(e) => onUpdate(index, 'quote', e.target.value)} rows={3} className={inputClass} placeholder="Citation…" />
+        <input type="text" value={(content.author as string) ?? ''} onChange={(e) => onUpdate(index, 'author', e.target.value)} className={inputClass} placeholder="Auteur de la citation…" />
+        <input type="text" value={(content.role as string) ?? ''} onChange={(e) => onUpdate(index, 'role', e.target.value)} className={inputClass} placeholder="Fonction…" />
       </div>
     );
   }
@@ -857,42 +741,12 @@ function BlockEditor({
       <div>
         {figures.map((fig, fi) => (
           <div key={fi} className="mt-2 flex gap-2">
-            <input
-              type="text"
-              value={fig.value}
-              onChange={(e) => {
-                const next = [...figures];
-                next[fi] = { ...fig, value: e.target.value };
-                onUpdate(index, 'figures', next);
-              }}
-              className="w-24 rounded border border-neutral-200 px-2 py-1.5 text-sm"
-              placeholder="Valeur"
-            />
-            <input
-              type="text"
-              value={fig.label}
-              onChange={(e) => {
-                const next = [...figures];
-                next[fi] = { ...fig, label: e.target.value };
-                onUpdate(index, 'figures', next);
-              }}
-              className="flex-1 rounded border border-neutral-200 px-2 py-1.5 text-sm"
-              placeholder="Description"
-            />
-            <button
-              onClick={() => onUpdate(index, 'figures', figures.filter((_, x) => x !== fi))}
-              className="rounded p-1.5 text-red-400 hover:bg-red-50"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            <input type="text" value={fig.value} onChange={(e) => { const next = [...figures]; next[fi] = { ...fig, value: e.target.value }; onUpdate(index, 'figures', next); }} className="w-24 rounded border border-neutral-200 px-2 py-1.5 text-sm" placeholder="Valeur" />
+            <input type="text" value={fig.label} onChange={(e) => { const next = [...figures]; next[fi] = { ...fig, label: e.target.value }; onUpdate(index, 'figures', next); }} className="flex-1 rounded border border-neutral-200 px-2 py-1.5 text-sm" placeholder="Description" />
+            <button onClick={() => onUpdate(index, 'figures', figures.filter((_, x) => x !== fi))} className="rounded p-1.5 text-red-400 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" /></button>
           </div>
         ))}
-        <button
-          onClick={() => onUpdate(index, 'figures', [...figures, { value: '', label: '' }])}
-          className="mt-2 flex items-center gap-1 text-xs font-medium text-ink hover:underline"
-        >
-          <Plus className="h-3 w-3" /> Ajouter un chiffre
-        </button>
+        <button onClick={() => onUpdate(index, 'figures', [...figures, { value: '', label: '' }])} className="mt-2 flex items-center gap-1 text-xs font-medium text-ink hover:underline"><Plus className="h-3 w-3" /> Ajouter un chiffre</button>
       </div>
     );
   }
@@ -904,54 +758,14 @@ function BlockEditor({
         {events.map((ev, ei) => (
           <div key={ei} className="mt-2 space-y-1 rounded border border-neutral-100 p-2">
             <div className="flex gap-2">
-              <input
-                type="text"
-                value={ev.date}
-                onChange={(e) => {
-                  const next = [...events];
-                  next[ei] = { ...ev, date: e.target.value };
-                  onUpdate(index, 'events', next);
-                }}
-                className="w-28 rounded border border-neutral-200 px-2 py-1.5 text-sm"
-                placeholder="Date"
-              />
-              <input
-                type="text"
-                value={ev.title}
-                onChange={(e) => {
-                  const next = [...events];
-                  next[ei] = { ...ev, title: e.target.value };
-                  onUpdate(index, 'events', next);
-                }}
-                className="flex-1 rounded border border-neutral-200 px-2 py-1.5 text-sm"
-                placeholder="Titre"
-              />
-              <button
-                onClick={() => onUpdate(index, 'events', events.filter((_, x) => x !== ei))}
-                className="rounded p-1.5 text-red-400 hover:bg-red-50"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <input type="text" value={ev.date} onChange={(e) => { const next = [...events]; next[ei] = { ...ev, date: e.target.value }; onUpdate(index, 'events', next); }} className="w-28 rounded border border-neutral-200 px-2 py-1.5 text-sm" placeholder="Date" />
+              <input type="text" value={ev.title} onChange={(e) => { const next = [...events]; next[ei] = { ...ev, title: e.target.value }; onUpdate(index, 'events', next); }} className="flex-1 rounded border border-neutral-200 px-2 py-1.5 text-sm" placeholder="Titre" />
+              <button onClick={() => onUpdate(index, 'events', events.filter((_, x) => x !== ei))} className="rounded p-1.5 text-red-400 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
-            <input
-              type="text"
-              value={ev.description}
-              onChange={(e) => {
-                const next = [...events];
-                next[ei] = { ...ev, description: e.target.value };
-                onUpdate(index, 'events', next);
-              }}
-              className="w-full rounded border border-neutral-200 px-2 py-1.5 text-sm"
-              placeholder="Description"
-            />
+            <input type="text" value={ev.description} onChange={(e) => { const next = [...events]; next[ei] = { ...ev, description: e.target.value }; onUpdate(index, 'events', next); }} className="w-full rounded border border-neutral-200 px-2 py-1.5 text-sm" placeholder="Description" />
           </div>
         ))}
-        <button
-          onClick={() => onUpdate(index, 'events', [...events, { date: '', title: '', description: '' }])}
-          className="mt-2 flex items-center gap-1 text-xs font-medium text-ink hover:underline"
-        >
-          <Plus className="h-3 w-3" /> Ajouter un événement
-        </button>
+        <button onClick={() => onUpdate(index, 'events', [...events, { date: '', title: '', description: '' }])} className="mt-2 flex items-center gap-1 text-xs font-medium text-ink hover:underline"><Plus className="h-3 w-3" /> Ajouter un événement</button>
       </div>
     );
   }
@@ -959,68 +773,26 @@ function BlockEditor({
   if (type === 'issue_reference') {
     return (
       <div>
-        <input
-          type="text"
-          value={(content.issue_number as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'issue_number', e.target.value)}
-          className={inputClass}
-          placeholder="N° du Cahier…"
-        />
-        <input
-          type="text"
-          value={(content.pages as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'pages', e.target.value)}
-          className={inputClass}
-          placeholder="Pages (ex: 4–5)…"
-        />
+        <input type="text" value={(content.issue_number as string) ?? ''} onChange={(e) => onUpdate(index, 'issue_number', e.target.value)} className={inputClass} placeholder="N° du Cahier…" />
+        <input type="text" value={(content.pages as string) ?? ''} onChange={(e) => onUpdate(index, 'pages', e.target.value)} className={inputClass} placeholder="Pages (ex: 4–5)…" />
       </div>
     );
   }
 
   if (type === 'video') {
-    return (
-      <input
-        type="text"
-        value={(content.url as string) ?? ''}
-        onChange={(e) => onUpdate(index, 'url', e.target.value)}
-        className={inputClass}
-        placeholder="URL de la vidéo…"
-      />
-    );
+    return <input type="text" value={(content.url as string) ?? ''} onChange={(e) => onUpdate(index, 'url', e.target.value)} className={inputClass} placeholder="URL de la vidéo…" />;
   }
 
   if (type === 'gallery') {
     const images = (content.images as string[]) ?? [];
-    return (
-      <div>
-        <textarea
-          value={images.join('\n')}
-          onChange={(e) => onUpdate(index, 'images', e.target.value.split('\n').filter(Boolean))}
-          rows={3}
-          className={inputClass}
-          placeholder="Une URL d'image par ligne…"
-        />
-      </div>
-    );
+    return <textarea value={images.join('\n')} onChange={(e) => onUpdate(index, 'images', e.target.value.split('\n').filter(Boolean))} rows={3} className={inputClass} placeholder="Une URL d'image par ligne…" />;
   }
 
   if (type === 'document') {
     return (
       <div>
-        <input
-          type="text"
-          value={(content.title as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'title', e.target.value)}
-          className={inputClass}
-          placeholder="Titre du document…"
-        />
-        <input
-          type="text"
-          value={(content.file_path as string) ?? ''}
-          onChange={(e) => onUpdate(index, 'file_path', e.target.value)}
-          className={inputClass}
-          placeholder="URL du document…"
-        />
+        <input type="text" value={(content.title as string) ?? ''} onChange={(e) => onUpdate(index, 'title', e.target.value)} className={inputClass} placeholder="Titre du document…" />
+        <input type="text" value={(content.file_path as string) ?? ''} onChange={(e) => onUpdate(index, 'file_path', e.target.value)} className={inputClass} placeholder="URL du document…" />
       </div>
     );
   }
@@ -1032,7 +804,10 @@ function BlockPreview({ block }: { block: ArticleBlock }) {
   const content = block.content_json ?? {};
   const type = block.type;
 
-  if (type === 'paragraph' || type === 'analysis' || type === 'fact' || type === 'testimony' || type === 'hypothesis' || type === 'open_question' || type === 'sidebar' || type === 'source') {
+  if (type === 'paragraph') {
+    return <RichTextRenderer content={content.richContent ?? content.text} className="text-neutral-700" />;
+  }
+  if (type === 'analysis' || type === 'fact' || type === 'testimony' || type === 'hypothesis' || type === 'open_question' || type === 'sidebar' || type === 'source') {
     return <p className="text-neutral-700">{(content.text as string) || ''}</p>;
   }
   if (type === 'heading') {
