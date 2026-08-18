@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { Save, Loader2, ArrowLeft, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Plus, Trash2, Eye, EyeOff, Upload, FileText, X } from 'lucide-react';
 
 interface IssuePage {
   id?: string;
@@ -19,7 +19,7 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(issueId !== 'new');
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'infos' | 'pages' | 'monetisation'>('infos');
+  const [activeTab, setActiveTab] = useState<'infos' | 'pages' | 'monetisation' | 'pdf'>('infos');
 
   const [issue, setIssue] = useState({
     issue_number: '',
@@ -39,6 +39,8 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
   });
 
   const [pages, setPages] = useState<IssuePage[]>([]);
+  const [pdfUploading, setPdfUploading] = useState(false);
+  const [pdfInfo, setPdfInfo] = useState<{ path: string; filename: string; size: number | null } | null>(null);
 
   const loadIssue = useCallback(async () => {
     if (issueId === 'new') {
@@ -80,6 +82,16 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
         individual_price: p.individual_price?.toString() ?? '',
       })),
     );
+    // Load PDF info
+    if (issueId !== 'new') {
+      try {
+        const resp = await fetch(`/api/admin/issues/${issueId}/pdf`, { credentials: 'same-origin' });
+        if (resp.ok) {
+          const d = await resp.json() as { has_pdf: boolean; path?: string; filename?: string; size?: number | null };
+          if (d.has_pdf) setPdfInfo({ path: d.path!, filename: d.filename!, size: d.size ?? null });
+        }
+      } catch { /* ignore */ }
+    }
     setLoading(false);
   }, [issueId]);
 
@@ -176,6 +188,55 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
     setPages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handlePdfUpload = async (file: File) => {
+    if (issueId === 'new') { alert('Sauvegardez le Cahier avant d\'ajouter un PDF.'); return; }
+    setPdfUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const resp = await fetch(`/api/admin/issues/${issueId}/pdf`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData,
+      });
+      if (!resp.ok) {
+        const d = await resp.json() as { error?: string };
+        throw new Error(d.error ?? 'Upload échoué');
+      }
+      const data = await resp.json() as { path: string; original_name: string; size: number };
+      setPdfInfo({ path: data.path, filename: data.original_name, size: data.size });
+      setIssue((prev) => ({ ...prev, pdf_file_path: data.path }));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur');
+    }
+    setPdfUploading(false);
+  };
+
+  const handlePdfDelete = async () => {
+    if (!pdfInfo || issueId === 'new') return;
+    if (!confirm('Supprimer le PDF associé à ce Cahier ?')) return;
+    setPdfUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('action', 'delete');
+      await fetch(`/api/admin/issues/${issueId}/pdf`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: formData,
+      });
+      setPdfInfo(null);
+      setIssue((prev) => ({ ...prev, pdf_file_path: '' }));
+    } catch { /* ignore */ }
+    setPdfUploading(false);
+  };
+
+  const formatFileSize = (bytes: number | null) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} o`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -222,6 +283,12 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
           className={`px-4 py-2 text-sm font-medium ${activeTab === 'monetisation' ? 'border-b-2 border-ink text-ink' : 'text-neutral-500 hover:text-neutral-700'}`}
         >
           Monétisation
+        </button>
+        <button
+          onClick={() => setActiveTab('pdf')}
+          className={`px-4 py-2 text-sm font-medium ${activeTab === 'pdf' ? 'border-b-2 border-ink text-ink' : 'text-neutral-500 hover:text-neutral-700'}`}
+        >
+          PDF
         </button>
       </div>
 
@@ -425,6 +492,52 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {activeTab === 'pdf' && (
+        <div className="rounded-lg border border-neutral-200 bg-white p-5 space-y-5">
+          <div>
+            <h3 className="text-sm font-semibold text-neutral-700">PDF du Cahier</h3>
+            <p className="mt-1 text-xs text-neutral-400">Associez le PDF original du Cahier pour la lecture en ligne et le téléchargement public.</p>
+          </div>
+
+          {pdfInfo ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+                <FileText className="h-8 w-8 text-neutral-400" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-neutral-700">{pdfInfo.filename}</p>
+                  {pdfInfo.size != null && <p className="text-xs text-neutral-400">{formatFileSize(pdfInfo.size)}</p>}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-600 hover:bg-neutral-50">
+                  {pdfUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  Remplacer
+                  <input type="file" accept="application/pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePdfUpload(f); }} />
+                </label>
+                <button onClick={handlePdfDelete} disabled={pdfUploading} className="flex items-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">
+                  <Trash2 className="h-4 w-4" />
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {issueId === 'new' ? (
+                <p className="text-sm text-neutral-400">Sauvegardez le Cahier avant d'ajouter un PDF.</p>
+              ) : (
+                <>
+                  <p className="text-sm text-neutral-400">Aucun PDF associé.</p>
+                  <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-neutral-200 px-4 py-8 text-sm text-neutral-500 hover:bg-neutral-50">
+                    {pdfUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+                    Téléverser un PDF
+                    <input type="file" accept="application/pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePdfUpload(f); }} />
+                  </label>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

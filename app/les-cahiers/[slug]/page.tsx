@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, BookOpen } from 'lucide-react';
+import { ArrowRight, BookOpen, FileText, Download } from 'lucide-react';
 import { supabaseAdmin } from '@/lib/supabase/server';
 import { PageRenderer, type PageBlockData, type PageLayout } from '@/components/editorial/page-renderer';
 
@@ -16,6 +16,7 @@ interface DbIssue {
   cover_image_path: string | null;
   page_count: number;
   status: string;
+  pdf_file_path: string | null;
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
@@ -115,6 +116,18 @@ export default async function PublicIssuePage({ params }: { params: { slug: stri
                   Lire le Cahier
                   <ArrowRight className="h-4 w-4" />
                 </a>
+                {issue.pdf_file_path && (
+                  <>
+                    <a href={`/les-cahiers/${issue.slug}/lire`} className="btn-editorial-secondary">
+                      <FileText className="h-4 w-4" />
+                      Lire le PDF en ligne
+                    </a>
+                    <a href={`/api/issues/${issue.id}/download`} className="btn-editorial-secondary">
+                      <Download className="h-4 w-4" />
+                      Télécharger le PDF
+                    </a>
+                  </>
+                )}
               </div>
             </div>
             {issue.cover_image_path && (
