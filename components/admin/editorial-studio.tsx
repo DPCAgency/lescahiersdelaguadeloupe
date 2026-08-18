@@ -74,6 +74,7 @@ interface IssueData {
   editorial_director: string;
   free_pages_count: number;
   download_enabled: boolean;
+  scheduled_at: string | null;
 }
 
 const BLOCK_TYPES: { type: BlockType; label: string; icon: typeof Type }[] = [
@@ -164,6 +165,7 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
           full_download_price: d.full_download_price?.toString() ?? '2.90',
           theme: d.theme ?? '', editorial_director: d.editorial_director ?? '',
           free_pages_count: d.free_pages_count ?? 1, download_enabled: d.download_enabled ?? true,
+          scheduled_at: d.scheduled_at ?? null,
         });
       }
 
@@ -417,6 +419,63 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
     });
   };
 
+  const publishNow = async () => {
+    if (!issue) return;
+    if (!confirm('Publier ce Cahier immédiatement ? Il sera visible publiquement.')) return;
+    const resp = await fetch(`/api/admin/issues/${issueId}/publish`, {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+    if (resp.ok) {
+      const d = await resp.json();
+      setIssue((prev) => prev ? { ...prev, status: 'published', scheduled_at: null } : prev);
+    }
+  };
+
+  const unpublish = async () => {
+    if (!issue) return;
+    if (!confirm('Dépublier ce Cahier ? Il ne sera plus visible publiquement.')) return;
+    const resp = await fetch(`/api/admin/issues/${issueId}/unpublish`, {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+    if (resp.ok) {
+      setIssue((prev) => prev ? { ...prev, status: 'draft' } : prev);
+    }
+  };
+
+  const schedulePublish = async () => {
+    if (!issue) return;
+    const dateStr = prompt('Date et heure de publication (AAAA-MM-JJ HH:MM) :');
+    if (!dateStr) return;
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) { alert('Date invalide'); return; }
+    if (date.getTime() <= Date.now()) { alert('La date doit être dans le futur'); return; }
+    const resp = await fetch(`/api/admin/issues/${issueId}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ scheduled_at: date.toISOString() }),
+    });
+    if (resp.ok) {
+      setIssue((prev) => prev ? { ...prev, status: 'scheduled', scheduled_at: date.toISOString() } : prev);
+    } else {
+      const data = await resp.json() as { error?: string };
+      alert(data.error ?? 'Erreur');
+    }
+  };
+
+  const unschedule = async () => {
+    if (!issue) return;
+    const resp = await fetch(`/api/admin/issues/${issueId}/unschedule`, {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+    if (resp.ok) {
+      setIssue((prev) => prev ? { ...prev, status: 'draft', scheduled_at: null } : prev);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -478,16 +537,36 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[issue.status] ?? ''}`}>
             {STATUS_OPTIONS.find((s) => s.value === issue.status)?.label ?? issue.status}
           </span>
-          <select value={issue.status} onChange={(e) => changeStatus(e.target.value)} className="rounded-lg border border-neutral-200 bg-white px-2 py-1.5 text-xs">
-            {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-          <button onClick={() => setPreviewMode(true)} className="flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50">
-            <Eye className="h-3.5 w-3.5" /> Aperçu
+          {issue.status === 'scheduled' && issue.scheduled_at && (
+            <span className="text-xs text-amber-600">
+              Publication prévue le {new Date(issue.scheduled_at).toLocaleDateString('fr-FR')} à {new Date(issue.scheduled_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <button onClick={() => window.open(`/admin/cahiers/${issueId}/preview`, '_blank')} className="flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50">
+            <Eye className="h-3.5 w-3.5" /> Prévisualiser
           </button>
-          <button onClick={saveAll} disabled={saveState === 'saving'} className="flex items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 text-xs font-medium text-white hover:bg-ink/90 disabled:opacity-50">
+          <button onClick={saveAll} disabled={saveState === 'saving'} className="flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-50">
             {saveState === 'saving' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             Enregistrer
           </button>
+          {issue.status === 'published' ? (
+            <button onClick={unpublish} className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+              Dépublier
+            </button>
+          ) : issue.status === 'scheduled' ? (
+            <button onClick={unschedule} className="flex items-center gap-1.5 rounded-lg border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50">
+              Annuler programmation
+            </button>
+          ) : (
+            <>
+              <button onClick={schedulePublish} className="flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50">
+                Programmer
+              </button>
+              <button onClick={publishNow} className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">
+                Publier
+              </button>
+            </>
+          )}
         </div>
       </div>
 
