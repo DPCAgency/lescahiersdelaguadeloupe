@@ -13,16 +13,18 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   Loader2, ArrowLeft, Save, Plus, Trash2, ChevronUp, ChevronDown,
   Type, AlignLeft, Image as ImageIcon, Quote, BarChart3, Minus,
-  PanelRight, Eye, FileText, Layers, Copy, X,
+  PanelRight, Eye, FileText, Layers, Copy, X, GripVertical,
   Bold, Italic, List, Undo2, Redo2,
 } from 'lucide-react';
 import { RichTextEditor } from './rich-text-editor';
+import { RichTextRenderer } from '@/components/editorial/rich-text-renderer';
 
 type BlockType = 'heading' | 'subheading' | 'paragraph' | 'image' | 'quote' | 'key_figure' | 'separator' | 'sidebar';
 type PageLayout = '1-column' | '2-columns' | 'hero-image' | 'image-text';
 type FontSize = 'sm' | 'base' | 'lg' | 'xl';
 type Alignment = 'left' | 'center' | 'right';
 type ImageWidth = 'normal' | 'wide' | 'full';
+type ImageSide = 'left' | 'right';
 
 interface BlockContent {
   text?: string;
@@ -39,6 +41,9 @@ interface BlockContent {
   spaceBefore?: 'none' | 'sm' | 'md' | 'lg';
   spaceAfter?: 'none' | 'sm' | 'md' | 'lg';
   articleId?: string;
+  columnSpan?: 1 | 2;
+  imageSide?: ImageSide;
+  pageLayout?: PageLayout;
 }
 
 interface PageBlock {
@@ -289,6 +294,27 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
     markDirty();
   };
 
+  const duplicatePage = async () => {
+    if (!issue) return;
+    const newPageNum = totalPages + 1;
+    const sourceBlocks = blocks.filter((b) => b.page_number === currentPage);
+    const sourceLayout = pageLayouts[currentPage];
+    const copied = sourceBlocks.map((b, i) => ({
+      ...b,
+      id: `temp-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
+      page_number: newPageNum,
+      position: b.position,
+      content_json: { ...b.content_json },
+    }));
+    setBlocks((prev) => [...prev, ...copied]);
+    if (sourceLayout) {
+      setPageLayouts((prev) => ({ ...prev, [newPageNum]: sourceLayout }));
+    }
+    setIssue({ ...issue, page_count: newPageNum });
+    setCurrentPage(newPageNum);
+    markDirty();
+  };
+
   const setLayout = (layout: PageLayout) => {
     setPageLayouts((prev) => ({ ...prev, [currentPage]: layout }));
     markDirty();
@@ -425,9 +451,7 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
               {pageBlocks.length === 0 ? (
                 <p className="py-20 text-center text-sm text-neutral-300">Page vide</p>
               ) : (
-                pageBlocks.map((block) => (
-                  <BlockPreview key={block.id} block={block} />
-                ))
+                <PageRenderer blocks={pageBlocks} layout={currentLayout} />
               )}
             </div>
           </div>
@@ -484,6 +508,9 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
             <button onClick={addPage} className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-400 hover:bg-neutral-50">
               <Plus className="h-4 w-4" />
             </button>
+            <button onClick={duplicatePage} title="Dupliquer la page" className="flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-400 hover:bg-neutral-50">
+              <Copy className="h-4 w-4" />
+            </button>
           </div>
 
           <h3 className="mb-2 mt-6 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Blocs</h3>
@@ -528,9 +555,7 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
               </div>
             </div>
 
-            <div className={`min-h-[600px] rounded-lg border border-neutral-200 bg-white p-12 shadow-sm ${
-              currentLayout === '2-columns' ? 'columns-2 gap-8' : ''
-            }`}>
+            <div className="min-h-[600px] rounded-lg border border-neutral-200 bg-white p-12 shadow-sm">
               {pageBlocks.length === 0 && (
                 <div className="flex h-[500px] flex-col items-center justify-center text-center">
                   <FileText className="h-12 w-12 text-neutral-200" strokeWidth={1.5} />
@@ -541,19 +566,25 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
 
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={pageBlocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-                  {pageBlocks.map((block) => (
-                    <SortableBlock
-                      key={block.id}
-                      block={block}
-                      isSelected={block.id === selectedBlockId}
-                      onSelect={() => setSelectedBlockId(block.id)}
-                      onDelete={() => deleteBlock(block.id)}
-                      onDuplicate={() => duplicateBlock(block.id)}
-                      onMoveUp={() => moveBlock(block.id, 'up')}
-                      onMoveDown={() => moveBlock(block.id, 'down')}
-                      onUpdate={(updates) => updateBlockContent(block.id, updates)}
-                    />
-                  ))}
+                  <div className={currentLayout === '2-columns' ? 'grid grid-cols-2 gap-8' : currentLayout === 'image-text' ? 'grid grid-cols-1 sm:grid-cols-2 gap-8' : 'block'}>
+                    {pageBlocks.map((block) => {
+                      const colSpan = block.content_json.columnSpan ?? (block.content_json.imageWidth === 'wide' || block.content_json.imageWidth === 'full' ? 2 : 1);
+                      return (
+                        <div key={block.id} className={colSpan === 2 ? 'col-span-2' : 'col-span-1'}>
+                          <SortableBlock
+                            block={block}
+                            isSelected={block.id === selectedBlockId}
+                            onSelect={() => setSelectedBlockId(block.id)}
+                            onDelete={() => deleteBlock(block.id)}
+                            onDuplicate={() => duplicateBlock(block.id)}
+                            onMoveUp={() => moveBlock(block.id, 'up')}
+                            onMoveDown={() => moveBlock(block.id, 'down')}
+                            onUpdate={(updates) => updateBlockContent(block.id, updates)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
                 </SortableContext>
               </DndContext>
             </div>
@@ -602,7 +633,7 @@ function SortableBlock({ block, isSelected, onSelect, onDelete, onDuplicate, onM
   const spaceAfter = SPACE_CLASSES[block.content_json.spaceAfter ?? 'md'];
 
   return (
-    <div ref={setNodeRef} style={style} className={`${spaceBefore} ${spaceAfter} break-inside-avoid`}>
+    <div ref={setNodeRef} style={style} className={`${spaceBefore} ${spaceAfter}`}>
       <div
         onClick={onSelect}
         className={`group relative cursor-pointer rounded-lg p-3 transition-all ${
@@ -614,9 +645,9 @@ function SortableBlock({ block, isSelected, onSelect, onDelete, onDuplicate, onM
           {...attributes}
           {...listeners}
           onClick={(e) => e.stopPropagation()}
-          className="absolute left-0 top-3 cursor-grab rounded p-0.5 text-neutral-300 opacity-0 transition-opacity hover:text-neutral-500 group-hover:opacity-100"
+          className="absolute -left-6 top-1/2 -translate-y-1/2 cursor-grab rounded p-1 text-neutral-300 opacity-0 transition-opacity hover:text-neutral-500 group-hover:opacity-100 sm:block hidden"
         >
-          <ChevronUp className="h-3 w-3 rotate-45" />
+          <GripVertical className="h-4 w-4" />
         </button>
 
         {isSelected && (
@@ -757,6 +788,38 @@ function BlockContentRenderer({ block, isSelected, onUpdate }: {
   return null;
 }
 
+// Shared page renderer (used by both preview and public display)
+function PageRenderer({ blocks, layout }: { blocks: PageBlock[]; layout: PageLayout }) {
+  const isTwoCol = layout === '2-columns';
+  const isImageText = layout === 'image-text';
+  const imageSide = blocks.find((b) => b.block_type === 'image')?.content_json.imageSide ?? 'left';
+
+  if (isImageText) {
+    const imageBlock = blocks.find((b) => b.block_type === 'image');
+    const textBlocks = blocks.filter((b) => b.block_type !== 'image');
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+        {imageSide === 'left' && imageBlock && <div><BlockPreview block={imageBlock} /></div>}
+        <div>{textBlocks.map((b) => <BlockPreview key={b.id} block={b} />)}</div>
+        {imageSide === 'right' && imageBlock && <div><BlockPreview block={imageBlock} /></div>}
+      </div>
+    );
+  }
+
+  if (isTwoCol) {
+    return (
+      <div className="grid grid-cols-2 gap-8">
+        {blocks.map((block) => {
+          const colSpan = block.content_json.columnSpan ?? (block.content_json.imageWidth === 'wide' || block.content_json.imageWidth === 'full' ? 2 : 1);
+          return <div key={block.id} className={colSpan === 2 ? 'col-span-2' : 'col-span-1'}><BlockPreview block={block} /></div>;
+        })}
+      </div>
+    );
+  }
+
+  return <div>{blocks.map((b) => <BlockPreview key={b.id} block={b} />)}</div>;
+}
+
 // Block preview (no editing)
 function BlockPreview({ block }: { block: PageBlock }) {
   const align = ALIGN_CLASSES[block.content_json.alignment ?? 'left'];
@@ -767,7 +830,9 @@ function BlockPreview({ block }: { block: PageBlock }) {
     <div className={`${spaceBefore} ${spaceAfter}`}>
       {block.block_type === 'heading' && <h1 className={`font-display text-3xl font-bold text-neutral-800 ${align}`}>{block.content_json.text}</h1>}
       {block.block_type === 'subheading' && <h2 className={`font-display text-xl font-semibold text-neutral-600 ${align}`}>{block.content_json.text}</h2>}
-      {block.block_type === 'paragraph' && <div className={`leading-relaxed text-neutral-700 ${align}`}>{block.content_json.text}</div>}
+      {block.block_type === 'paragraph' && (
+        <RichTextRenderer content={block.content_json.richContent ?? block.content_json.text} className={`leading-relaxed text-neutral-700 ${align}`} />
+      )}
       {block.block_type === 'image' && block.content_json.imageUrl && (
         <div className={align}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -917,6 +982,14 @@ function BlockProperties({ block, onUpdate }: {
               <option value="full">Pleine largeur</option>
             </select>
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-neutral-500">Côté (layout image+texte)</label>
+            <select value={block.content_json.imageSide ?? 'left'}
+              onChange={(e) => onUpdate({ imageSide: e.target.value as ImageSide })} className={inputClass}>
+              <option value="left">Gauche</option>
+              <option value="right">Droite</option>
+            </select>
+          </div>
         </>
       )}
 
@@ -955,6 +1028,15 @@ function BlockProperties({ block, onUpdate }: {
             <option value="lg">Grand</option>
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-xs font-medium text-neutral-500">Largeur colonne (layout 2 colonnes)</label>
+        <select value={String(block.content_json.columnSpan ?? 1)}
+          onChange={(e) => onUpdate({ columnSpan: parseInt(e.target.value) as 1 | 2 })} className={inputClass}>
+          <option value="1">1 colonne</option>
+          <option value="2">2 colonnes (pleine largeur)</option>
+        </select>
       </div>
     </div>
   );
