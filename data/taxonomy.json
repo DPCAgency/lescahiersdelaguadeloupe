@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "rubrics": [
+    "politique-institutions",
+    "economie",
+    "societe",
+    "territoires",
+    "environnement",
+    "culture"
+  ],
+  "formats": [
+    "enquete",
+    "analyse",
+    "decryptage",
+    "entretien",
+    "reportage",
+    "chronologie",
+    "tribune",
+    "dossier",
+    "documents"
+  ],
+  "communes": [
+    "le-gosier",
+    "les-abymes",
+    "pointe-a-pitre",
+    "baie-mahault",
+    "petit-bourg",
+    "sainte-anne",
+    "saint-francois",
+    "basse-terre",
+    "petit-canal"
+  ]
+}
