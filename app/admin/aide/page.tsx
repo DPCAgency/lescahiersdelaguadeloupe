@@ -1,4 +1,5 @@
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle, BookOpen } from 'lucide-react';
+import { EDITORIAL_IDENTITY, EDITORIAL_CHARTER, EDITORIAL_FINAL_CHECKS } from '@/lib/editorial/editorial-style';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +39,43 @@ export default function AidePage() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="rounded-lg border border-neutral-200 bg-white p-6">
+        <div className="flex items-center gap-3">
+          <BookOpen className="h-5 w-5 text-neutral-400" strokeWidth={1.5} />
+          <div>
+            <h2 className="font-display text-xl font-bold text-neutral-800">Charte rédactionnelle</h2>
+            <p className="mt-1 text-sm text-neutral-500">{EDITORIAL_IDENTITY.name} · {EDITORIAL_IDENTITY.positioning}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-lg bg-neutral-50 p-4">
+          <p className="text-sm font-medium text-neutral-700">Méthode éditoriale</p>
+          <p className="mt-1 font-display text-lg text-ink">{EDITORIAL_IDENTITY.method}</p>
+          <p className="mt-1 text-xs text-neutral-400">{EDITORIAL_IDENTITY.signature}</p>
+        </div>
+
+        <ul className="mt-5 space-y-2">
+          {EDITORIAL_CHARTER.map((rule, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-neutral-600">
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-neutral-400" />
+              {rule}
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-5 border-t border-neutral-100 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Contrôles avant publication</p>
+          <ul className="mt-2 space-y-1.5">
+            {EDITORIAL_FINAL_CHECKS.map((check, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-neutral-500">
+                <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-neutral-300" />
+                {check}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </div>
   );
