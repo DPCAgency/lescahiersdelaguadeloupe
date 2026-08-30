@@ -64,7 +64,7 @@ export default async function AdminCommandesPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-neutral-600">{order.total_amount} {order.currency}</td>
-                <td className="px-4 py-3 text-sm text-neutral-400">{order.payment_provider ?? '—'}</td>
+                <td className="px-4 py-3 text-sm text-neutral-400">{order.payment_provider ?? '·'}</td>
                 <td className="px-4 py-3 text-sm text-neutral-400">{new Date(order.created_at).toLocaleDateString('fr-FR')}</td>
               </tr>
             ))}

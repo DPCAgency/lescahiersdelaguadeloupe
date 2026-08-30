@@ -165,7 +165,7 @@ export default async function DashboardPage() {
               <div key={issue.id} className="flex items-center justify-between border-b border-neutral-100 pb-3 last:border-0">
                 <div>
                   <Link href={`/admin/cahiers/${issue.id}/edit`} className="text-sm font-medium text-neutral-800 hover:text-ink">
-                    N°{issue.issue_number} — {issue.title}
+                    N°{issue.issue_number} · {issue.title}
                   </Link>
                   <p className="text-xs text-neutral-400">{new Date(issue.updated_at).toLocaleDateString('fr-FR')}</p>
                 </div>
@@ -281,7 +281,7 @@ export default async function DashboardPage() {
               <li key={issue.id} className="flex items-center justify-between border-b border-neutral-100 pb-3 last:border-0">
                 <div>
                   <Link href={`/admin/cahiers/${issue.id}/edit`} className="text-sm font-medium text-neutral-800 hover:text-ink">
-                    N°{issue.issue_number} — {issue.title}
+                    N°{issue.issue_number} · {issue.title}
                   </Link>
                   <p className="text-xs text-neutral-400">{new Date(issue.created_at).toLocaleDateString('fr-FR')}</p>
                 </div>
@@ -299,9 +299,9 @@ export default async function DashboardPage() {
             )}
             {(reviewList ?? []).map((article) => {
               const a = article as Record<string, unknown>;
-              const authorName = (a.authors as { name: string }[] | null)?.[0]?.name ?? '—';
-              const categoryName = (a.categories as { name: string }[] | null)?.[0]?.name ?? '—';
-              const submittedAt = a.submitted_at ? new Date(a.submitted_at as string).toLocaleDateString('fr-FR') : '—';
+              const authorName = (a.authors as { name: string }[] | null)?.[0]?.name ?? '·';
+              const categoryName = (a.categories as { name: string }[] | null)?.[0]?.name ?? '·';
+              const submittedAt = a.submitted_at ? new Date(a.submitted_at as string).toLocaleDateString('fr-FR') : '·';
               return (
                 <div key={a.id as string} className="flex items-center justify-between border-b border-neutral-100 pb-3 last:border-0">
                   <div>
@@ -399,7 +399,7 @@ export default async function DashboardPage() {
               <li key={issue.id} className="flex items-center justify-between border-b border-neutral-100 pb-3 last:border-0">
                 <div>
                   <Link href={`/admin/cahiers/${issue.id}`} className="text-sm font-medium text-neutral-800 hover:text-ink">
-                    N°{issue.issue_number} — {issue.title}
+                    N°{issue.issue_number} · {issue.title}
                   </Link>
                   <p className="text-xs text-neutral-400">
                     {issue.status === 'published' ? 'Publié' : 'Brouillon'} · {new Date(issue.created_at).toLocaleDateString('fr-FR')}
@@ -442,7 +442,7 @@ export default async function DashboardPage() {
           <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Commerce</h3>
         </div>
         <p className="mt-3 text-sm text-neutral-400">
-          {orders ?? 0} commande(s) enregistrée(s). Le paiement n'est pas encore activé — les données s'afficheront ici une fois Stripe connecté.
+          {orders ?? 0} commande(s) enregistrée(s). Le paiement n'est pas encore activé · les données s'afficheront ici une fois Stripe connecté.
         </p>
       </div>
     </div>

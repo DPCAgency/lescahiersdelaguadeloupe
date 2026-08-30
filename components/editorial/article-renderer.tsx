@@ -48,7 +48,7 @@ export function ArticleRenderer({ article }: { article: ArticleRenderData }) {
           {(article.hero_caption || article.hero_credit) && (
             <figcaption className="mt-2 text-xs text-neutral-400">
               {article.hero_caption}
-              {article.hero_credit ? ` — © ${article.hero_credit}` : ''}
+              {article.hero_credit ? ` · © ${article.hero_credit}` : ''}
             </figcaption>
           )}
         </figure>
@@ -85,7 +85,7 @@ function ArticleBlockRenderer({ block }: { block: ArticleBlockData }) {
     return (
       <blockquote className="border-l-4 border-ink pl-4 text-lg italic text-neutral-700">
         « {(content.quote as string) || ''} »
-        {content.author ? <footer className="mt-2 text-sm not-italic text-neutral-500">— {content.author as string}</footer> : null}
+        {content.author ? <footer className="mt-2 text-sm not-italic text-neutral-500">· {content.author as string}</footer> : null}
       </blockquote>
     );
   }

@@ -665,9 +665,9 @@ export default function ImportReviewPage() {
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <select value={issueIdForArticles} onChange={(e) => setIssueIdForArticles(e.target.value)} className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm">
-              <option value="">— Sélectionner un Cahier —</option>
+              <option value="">· Sélectionner un Cahier ·</option>
               {availableIssues.map((iss) => (
-                <option key={iss.id} value={iss.id}>N°{iss.issue_number} — {iss.title}</option>
+                <option key={iss.id} value={iss.id}>N°{iss.issue_number} · {iss.title}</option>
               ))}
             </select>
             <button
@@ -844,11 +844,11 @@ export default function ImportReviewPage() {
                   <div className="mt-3 space-y-3 rounded border border-neutral-200 bg-white p-3">
                     <div>
                       <label className="text-[10px] font-medium uppercase text-neutral-400">Confiance</label>
-                      <p className={`text-xs ${confidenceColor(block.confidence)}`}>{Math.round(block.confidence * 100)}% — {confidenceLabel(block.confidence)}</p>
+                      <p className={`text-xs ${confidenceColor(block.confidence)}`}>{Math.round(block.confidence * 100)}% · {confidenceLabel(block.confidence)}</p>
                     </div>
                     <div>
                       <label className="text-[10px] font-medium uppercase text-neutral-400">Source (immuable)</label>
-                      <p className="mt-1 rounded bg-neutral-50 p-2 text-xs text-neutral-500">{block.source_text || '—'}</p>
+                      <p className="mt-1 rounded bg-neutral-50 p-2 text-xs text-neutral-500">{block.source_text || '·'}</p>
                     </div>
                     <div>
                       <label className="text-[10px] font-medium uppercase text-neutral-400">Version corrigée</label>
@@ -877,7 +877,7 @@ export default function ImportReviewPage() {
                         {block.asset_path ? (
                           <p className="mt-1 text-xs text-neutral-500">{block.asset_path}</p>
                         ) : (
-                          <p className="mt-1 text-xs text-amber-600">Aucun asset — utilisez « Recadrer » pour définir la zone</p>
+                          <p className="mt-1 text-xs text-amber-600">Aucun asset · utilisez « Recadrer » pour définir la zone</p>
                         )}
                       </div>
                     )}

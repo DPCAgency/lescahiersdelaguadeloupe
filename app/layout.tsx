@@ -25,8 +25,8 @@ const sourceSerif = Source_Serif_4({
 export const metadata: Metadata = {
   metadataBase: new URL('https://lescahiersdelaguadeloupe.fr'),
   title: {
-    default: 'Les Cahiers de la Guadeloupe — Revue d’analyse et d’investigation',
-    template: '%s — Les Cahiers de la Guadeloupe',
+    default: 'Les Cahiers de la Guadeloupe · Revue d’analyse et d’investigation',
+    template: '%s · Les Cahiers de la Guadeloupe',
   },
   description:
     'Revue d’analyse et d’investigation. Comprendre aujourd’hui pour agir demain. Enquêter, comprendre, éclairer le débat public.',
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'fr_GP',
     siteName: 'Les Cahiers de la Guadeloupe',
-    title: 'Les Cahiers de la Guadeloupe — Revue d’analyse et d’investigation',
+    title: 'Les Cahiers de la Guadeloupe · Revue d’analyse et d’investigation',
     description:
       'Enquêter, comprendre, éclairer le débat public. Comprendre aujourd’hui pour agir demain.',
   },

@@ -16,7 +16,7 @@ export default async function ArticlePreviewPage({ params }: { params: { id: str
     redirect(`/connexion?redirect=/admin/articles/${params.id}/preview`);
   }
 
-  // Admin JWT client — RLS allows admin roles to read any article via the admin_write policy.
+  // Admin JWT client · RLS allows admin roles to read any article via the admin_write policy.
   // Service role is not needed: the admin_write policy grants FOR ALL to admin profiles.
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -76,10 +76,10 @@ export default async function ArticlePreviewPage({ params }: { params: { id: str
           </Link>
           {!isPublic && (
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-              {article.status === 'draft' ? 'BROUILLON — NON PUBLIC' :
-               article.status === 'review' ? 'EN REVUE — NON PUBLIC' :
-               article.status === 'ready' ? 'PRÊT — NON PUBLIC' :
-               article.status === 'scheduled' ? 'PROGRAMMÉ — NON PUBLIC' :
+              {article.status === 'draft' ? 'BROUILLON · NON PUBLIC' :
+               article.status === 'review' ? 'EN REVUE · NON PUBLIC' :
+               article.status === 'ready' ? 'PRÊT · NON PUBLIC' :
+               article.status === 'scheduled' ? 'PROGRAMMÉ · NON PUBLIC' :
                'NON PUBLIC'}
             </span>
           )}

@@ -45,7 +45,7 @@ export function PagePaywall({
             onClick={() => onUnlockPage(page.pageNumber)}
             className="btn-editorial w-full"
           >
-            Débloquer cette page — {formatPrice(issue.pricePerPage)}
+            Débloquer cette page · {formatPrice(issue.pricePerPage)}
             <ArrowRight className="h-4 w-4" />
           </button>
 
@@ -67,7 +67,7 @@ export function PagePaywall({
             className="inline-flex items-center justify-center gap-2 border border-primary bg-primary-light px-6 py-3 text-[12px] font-semibold uppercase tracking-[0.18em] text-primary-dark transition-colors hover:bg-primary hover:text-white"
           >
             <FileText className="h-4 w-4" />
-            Cahier complet — {formatPrice(issue.fullDownloadPrice)}
+            Cahier complet · {formatPrice(issue.fullDownloadPrice)}
           </button>
           <p className="text-center text-[11px] text-muted">
             Accès à toutes les pages + téléchargement PDF
@@ -168,7 +168,7 @@ export function PageSelector({
               onClick={onBuyFullIssue}
               className="btn-editorial mt-4"
             >
-              Acheter le cahier complet — {formatPrice(issue.fullDownloadPrice)}
+              Acheter le cahier complet · {formatPrice(issue.fullDownloadPrice)}
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
@@ -321,7 +321,7 @@ export function IssueReader({ issue, pages }: IssueReaderProps) {
               {currentPage.pageNumber === 1 && (
                 <>
                   <p>
-                    Les Cahiers de la Guadeloupe — {issue.number} — {issue.date}.
+                    Les Cahiers de la Guadeloupe · {issue.number} · {issue.date}.
                   </p>
                   <p>
                     {issue.title}

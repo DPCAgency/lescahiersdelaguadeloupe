@@ -143,7 +143,7 @@ export class AzureDocumentAnalysisProvider implements DocumentAnalysisProvider {
         break;
       }
       if (statusBody.status === 'failed') {
-        throw new Error(`Azure: analyse échouée — ${statusBody.error?.message ?? 'Erreur inconnue'}`);
+        throw new Error(`Azure: analyse échouée · ${statusBody.error?.message ?? 'Erreur inconnue'}`);
       }
       attempts++;
     }

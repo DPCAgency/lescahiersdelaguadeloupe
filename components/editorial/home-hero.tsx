@@ -12,7 +12,7 @@ export function HomeHero() {
           <div className="flex flex-col justify-between border-b border-border py-10 lg:col-span-7 lg:border-b-0 lg:border-r lg:py-16 lg:pr-16">
             <div>
               <div className="flex items-center gap-3">
-                <span className="eyebrow">Enquête — N°2</span>
+                <span className="eyebrow">Enquête · N°2</span>
                 <span className="h-px w-8 bg-primary" aria-hidden />
                 <span className="eyebrow-muted">{ISSUE_DATE}</span>
               </div>
@@ -53,7 +53,7 @@ export function HomeHero() {
             <div className="absolute inset-0 bg-gradient-to-t from-ink/30 via-transparent to-transparent" />
             <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between text-white">
               <span className="text-[10px] font-semibold uppercase tracking-[0.24em]">
-                {ISSUE_NUMBER} — {ISSUE_DATE}
+                {ISSUE_NUMBER} · {ISSUE_DATE}
               </span>
               <span className="text-[10px] font-semibold uppercase tracking-[0.24em]">
                 Comprendre aujourd’hui pour agir demain

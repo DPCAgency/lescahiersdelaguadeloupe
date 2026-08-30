@@ -180,7 +180,7 @@ export const methodData = {
 };
 
 export const newsletterData = {
-  title: 'Les Cahiers — La lettre',
+  title: 'Les Cahiers · La lettre',
   text: 'Recevez les nouvelles enquêtes, analyses et publications.',
   placeholder: 'votre@email.fr',
   buttonText: 'S’inscrire',

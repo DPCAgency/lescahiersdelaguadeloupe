@@ -48,7 +48,7 @@ export function SiteFooter() {
             </p>
             <form className="mt-6 max-w-sm" action="/api/newsletter" method="post">
               <label htmlFor="footer-email" className="eyebrow-muted mb-2 block">
-                La lettre — mensuelle, gratuite
+                La lettre · mensuelle, gratuite
               </label>
               <div className="flex items-center border border-ink">
                 <input
@@ -114,10 +114,10 @@ export function SiteFooter() {
 
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 sm:flex-row sm:items-center">
           <p className="text-[12px] text-muted">
-            © {new Date().getFullYear()} Les Cahiers de la Guadeloupe — Tous droits réservés
+            © {new Date().getFullYear()} Les Cahiers de la Guadeloupe · Tous droits réservés
           </p>
           <p className="text-[12px] text-muted">
-            N°2 — Août 2026 — Comprendre aujourd’hui pour agir demain
+            N°2 · Août 2026 · Comprendre aujourd’hui pour agir demain
           </p>
         </div>
       </div>

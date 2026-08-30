@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: { issueId: st
     }
   }
 
-  // Old multipart upload flow — deprecated, return 410
+  // Old multipart upload flow · deprecated, return 410
   return NextResponse.json(
     { success: false, error: 'Use signed upload flow: POST /api/admin/issues/[issueId]/pdf/upload-url' },
     { status: 410 },

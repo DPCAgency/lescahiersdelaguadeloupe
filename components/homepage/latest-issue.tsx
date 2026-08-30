@@ -54,14 +54,14 @@ export function LatestIssue({ issue }: LatestIssueProps) {
             <div className="relative aspect-[3/4] w-full bg-white/5">
               <Image
                 src={issue.cover ?? 'https://images.pexels.com/photos/38129343/pexels-photo-38129343.jpeg?auto=compress&cs=tinysrgb&w=800'}
-                alt={`Couverture ${issue.number} — Les Cahiers de la Guadeloupe`}
+                alt={`Couverture ${issue.number} · Les Cahiers de la Guadeloupe`}
                 fill
                 sizes="(max-width: 1024px) 100vw, 40vw"
                 className="object-cover"
               />
             </div>
             <p className="mt-3 text-right text-[12px] text-white/50">
-              Cahier complet — {formatPrice(issue.fullDownloadPrice)}
+              Cahier complet · {formatPrice(issue.fullDownloadPrice)}
             </p>
           </div>
         </div>

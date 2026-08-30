@@ -294,7 +294,7 @@ export function IssueReaderClient({
               {pageImages[currentPage.pageNumber] ? (
                 <img
                   src={pageImages[currentPage.pageNumber]}
-                  alt={`Page ${currentPage.pageNumber} — ${currentPage.title}`}
+                  alt={`Page ${currentPage.pageNumber} · ${currentPage.title}`}
                   className="w-full border border-border shadow-lg"
                 />
               ) : (
@@ -385,7 +385,7 @@ function Paywall({
             className="btn-editorial w-full"
           >
             <FileText className="h-4 w-4" />
-            Acheter le Cahier complet — {issue.fullDownloadPrice.toFixed(2)} €
+            Acheter le Cahier complet · {issue.fullDownloadPrice.toFixed(2)} €
           </button>
           <p className="text-center text-[11px] text-muted">
             Accès à toutes les pages + téléchargement PDF

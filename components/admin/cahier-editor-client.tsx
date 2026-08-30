@@ -373,7 +373,7 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
           p.status === 'active' && ['author', 'editor'].includes(p.role as string)
         ).map((p: Record<string, unknown>) => ({
           id: p.id as string,
-          display_name: (p.display_name as string) || (p.first_name as string) || '—',
+          display_name: (p.display_name as string) || (p.first_name as string) || '·',
           email: (p.email as string) || '',
         }));
         setAvailableProfiles(profiles);
@@ -614,7 +614,7 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
           <div className="border-t border-neutral-100 pt-4">
             <h4 className="text-xs font-semibold text-neutral-600">Pages gratuites</h4>
             <p className="mt-1 text-[11px] text-neutral-400">
-              Page PDF 1 = Couverture — Page PDF 2 = Première page éditoriale.
+              Page PDF 1 = Couverture · Page PDF 2 = Première page éditoriale.
               Les pages marquées comme gratuites sont accessibles sans achat.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -627,7 +627,7 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
                   }`}
                 >
                   {page.is_free ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                  Page {String(page.page_number).padStart(2, '0')} — {page.is_free ? 'Gratuite' : 'Payante'}
+                  Page {String(page.page_number).padStart(2, '0')} · {page.is_free ? 'Gratuite' : 'Payante'}
                 </button>
               ))}
             </div>
@@ -796,7 +796,7 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
               {collaborators.map((c) => (
                 <div key={c.id} className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3">
                   <div>
-                    <p className="text-sm font-medium text-neutral-800">{c.profiles?.display_name || '—'}</p>
+                    <p className="text-sm font-medium text-neutral-800">{c.profiles?.display_name || '·'}</p>
                     <p className="text-xs text-neutral-400">{c.profiles?.email || ''}</p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -830,7 +830,7 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
                   <div>
                     <label className="mb-1 block text-xs font-medium text-neutral-500">Utilisateur</label>
                     <select value={newCollabProfile} onChange={(e) => setNewCollabProfile(e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
-                      <option value="">—</option>
+                      <option value="">·</option>
                       {availableProfiles.map((p) => (
                         <option key={p.id} value={p.id}>{p.display_name} ({p.email})</option>
                       ))}

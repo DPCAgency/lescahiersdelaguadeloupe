@@ -4,7 +4,7 @@ const n02Blocks: ExtractedBlockData[] = [
   { page_number: 1, type: 'heading', source_text: `Qui gouverne réellement Le Gosier ?`, bounding_box_json: { x: 0.10, y: 0.09, width: 0.83, height: 0.07 }, confidence: 0.98 },
   { page_number: 1, type: 'subheading', source_text: `Enquête sur la gouvernance locale`, bounding_box_json: { x: 0.10, y: 0.17, width: 0.67, height: 0.03 }, confidence: 0.95 },
   { page_number: 1, type: 'image', source_text: '', bounding_box_json: { x: 0.10, y: 0.22, width: 0.83, height: 0.67 }, confidence: 0.92, asset_path: 'covers/numero-02-cover.jpg' },
-  { page_number: 1, type: 'footer', source_text: `Les Cahiers de la Guadeloupe — N°02 — Août 2026`, bounding_box_json: { x: 0.10, y: 0.91, width: 0.83, height: 0.02 }, confidence: 0.97 },
+  { page_number: 1, type: 'footer', source_text: `Les Cahiers de la Guadeloupe · N°02 · Août 2026`, bounding_box_json: { x: 0.10, y: 0.91, width: 0.83, height: 0.02 }, confidence: 0.97 },
 
   { page_number: 2, type: 'heading', source_text: `Une question de gouvernance`, bounding_box_json: { x: 0.10, y: 0.07, width: 0.83, height: 0.06 }, confidence: 0.96 },
   { page_number: 2, type: 'paragraph', source_text: `Les différentes fonctions, relations et intérêts sont-ils demeurés suffisamment séparés pour garantir l'impartialité de la décision publique ?`, bounding_box_json: { x: 0.10, y: 0.15, width: 0.83, height: 0.09 }, confidence: 0.91 },
@@ -18,10 +18,10 @@ const n02Blocks: ExtractedBlockData[] = [
   { page_number: 3, type: 'key_figure', source_text: `46 370,10 € montant étudié`, bounding_box_json: { x: 0.47, y: 0.26, width: 0.47, height: 0.04 }, confidence: 0.87 },
 
   { page_number: 4, type: 'heading', source_text: `Les gouvernances municipales depuis 2021`, bounding_box_json: { x: 0.10, y: 0.07, width: 0.83, height: 0.06 }, confidence: 0.93 },
-  { page_number: 4, type: 'timeline', source_text: `2020 — Changement de gouvernance municipale`, bounding_box_json: { x: 0.10, y: 0.15, width: 0.83, height: 0.03 }, confidence: 0.85 },
-  { page_number: 4, type: 'timeline', source_text: `2021 — Délibérations sur les subventions`, bounding_box_json: { x: 0.10, y: 0.19, width: 0.83, height: 0.03 }, confidence: 0.83 },
-  { page_number: 4, type: 'timeline', source_text: `2022 — Saisine et recours`, bounding_box_json: { x: 0.10, y: 0.23, width: 0.83, height: 0.03 }, confidence: 0.81 },
-  { page_number: 4, type: 'timeline', source_text: `2023 — Témoignages recueillis`, bounding_box_json: { x: 0.10, y: 0.27, width: 0.83, height: 0.03 }, confidence: 0.80 },
+  { page_number: 4, type: 'timeline', source_text: `2020 · Changement de gouvernance municipale`, bounding_box_json: { x: 0.10, y: 0.15, width: 0.83, height: 0.03 }, confidence: 0.85 },
+  { page_number: 4, type: 'timeline', source_text: `2021 · Délibérations sur les subventions`, bounding_box_json: { x: 0.10, y: 0.19, width: 0.83, height: 0.03 }, confidence: 0.83 },
+  { page_number: 4, type: 'timeline', source_text: `2022 · Saisine et recours`, bounding_box_json: { x: 0.10, y: 0.23, width: 0.83, height: 0.03 }, confidence: 0.81 },
+  { page_number: 4, type: 'timeline', source_text: `2023 · Témoignages recueillis`, bounding_box_json: { x: 0.10, y: 0.27, width: 0.83, height: 0.03 }, confidence: 0.80 },
 
   { page_number: 5, type: 'heading', source_text: `Regarder la mécanique`, bounding_box_json: { x: 0.10, y: 0.07, width: 0.83, height: 0.06 }, confidence: 0.92 },
   { page_number: 5, type: 'paragraph', source_text: `Comment se construit la décision publique. Le rôle du maire, du conseil municipal, du cabinet et de l'administration.`, bounding_box_json: { x: 0.10, y: 0.15, width: 0.83, height: 0.09 }, confidence: 0.87 },
@@ -47,7 +47,7 @@ const n02Blocks: ExtractedBlockData[] = [
 
   { page_number: 11, type: 'heading', source_text: `Conclusion`, bounding_box_json: { x: 0.10, y: 0.07, width: 0.83, height: 0.06 }, confidence: 0.94 },
   { page_number: 11, type: 'paragraph', source_text: `Ce cahier ne désigne pas de coupables. Il pose une question : qui exerce réellement l'influence dans la fabrication de la décision publique au Gosier ?`, bounding_box_json: { x: 0.10, y: 0.15, width: 0.83, height: 0.09 }, confidence: 0.88 },
-  { page_number: 11, type: 'footer', source_text: `Les Cahiers de la Guadeloupe — N°02 — Août 2026`, bounding_box_json: { x: 0.10, y: 0.91, width: 0.83, height: 0.02 }, confidence: 0.96 },
+  { page_number: 11, type: 'footer', source_text: `Les Cahiers de la Guadeloupe · N°02 · Août 2026`, bounding_box_json: { x: 0.10, y: 0.91, width: 0.83, height: 0.02 }, confidence: 0.96 },
 ];
 
 const n02PotentialArticles: PotentialArticle[] = [

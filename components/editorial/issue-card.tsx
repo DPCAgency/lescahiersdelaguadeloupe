@@ -15,7 +15,7 @@ export function IssueCard({ issue, href }: IssueCardProps) {
         <div className="relative aspect-[3/4] w-full overflow-hidden bg-background-soft">
           <Image
             src={issue.cover ?? 'https://images.pexels.com/photos/38129343/pexels-photo-38129343.jpeg?auto=compress&cs=tinysrgb&w=600'}
-            alt={`Couverture ${issue.number} — ${issue.title}`}
+            alt={`Couverture ${issue.number} · ${issue.title}`}
             fill
             sizes="(max-width: 768px) 100vw, 33vw"
             className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"

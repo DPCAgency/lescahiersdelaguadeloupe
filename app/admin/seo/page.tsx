@@ -10,11 +10,11 @@ export default function AdminSeoPage() {
   const [saving, setSaving] = useState(false);
 
   const seoKeys = [
-    { key: 'seo_default_title', label: 'Titre par défaut', placeholder: 'Les Cahiers de la Guadeloupe — Revue d\'analyse et d\'investigation' },
+    { key: 'seo_default_title', label: 'Titre par défaut', placeholder: 'Les Cahiers de la Guadeloupe · Revue d\'analyse et d\'investigation' },
     { key: 'seo_default_description', label: 'Description par défaut', placeholder: 'Revue d\'analyse et d\'investigation…' },
-    { key: 'seo_og_title', label: 'Open Graph — Titre', placeholder: 'Les Cahiers de la Guadeloupe' },
-    { key: 'seo_og_description', label: 'Open Graph — Description', placeholder: 'Enquêter, comprendre, éclairer le débat public.' },
-    { key: 'seo_og_image', label: 'Open Graph — Image (URL)', placeholder: '/assets/og-image.jpg' },
+    { key: 'seo_og_title', label: 'Open Graph · Titre', placeholder: 'Les Cahiers de la Guadeloupe' },
+    { key: 'seo_og_description', label: 'Open Graph · Description', placeholder: 'Enquêter, comprendre, éclairer le débat public.' },
+    { key: 'seo_og_image', label: 'Open Graph · Image (URL)', placeholder: '/assets/og-image.jpg' },
     { key: 'seo_robots_index', label: 'Indexation (true/false)', placeholder: 'true' },
     { key: 'seo_robots_follow', label: 'Follow (true/false)', placeholder: 'true' },
   ];

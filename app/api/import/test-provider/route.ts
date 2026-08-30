@@ -44,7 +44,7 @@ export async function POST() {
       return NextResponse.json({
         available: false,
         mode: 'openai',
-        message: 'Service indisponible — erreur de connexion',
+        message: 'Service indisponible · erreur de connexion',
       });
     }
   }
@@ -56,7 +56,7 @@ export async function POST() {
     return NextResponse.json({
       available: false,
       mode: 'azure',
-      message: 'Service indisponible — credentials manquantes',
+      message: 'Service indisponible · credentials manquantes',
     });
   }
 
@@ -85,7 +85,7 @@ export async function POST() {
     return NextResponse.json({
       available: false,
       mode: 'azure',
-      message: 'Service indisponible — erreur de connexion',
+      message: 'Service indisponible · erreur de connexion',
     });
   }
 }

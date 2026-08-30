@@ -31,7 +31,7 @@ export async function renderPdfPages(
     const doc = mupdf.Document.openDocument(pdfBuffer, 'application/pdf');
     const pageCount = doc.countPages();
 
-    console.log(`[pdf-renderer] MuPDF opened — pages=${pageCount}`);
+    console.log(`[pdf-renderer] MuPDF opened · pages=${pageCount}`);
 
     const results: RenderedPage[] = [];
 

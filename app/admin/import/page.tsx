@@ -215,7 +215,7 @@ export default function AdminImportPage() {
       const data = result.data as { available: boolean; message: string };
       setProviderTest({ status: 'done', available: data.available, message: data.message });
     } catch {
-      setProviderTest({ status: 'done', available: false, message: 'Service indisponible — erreur de connexion' });
+      setProviderTest({ status: 'done', available: false, message: 'Service indisponible · erreur de connexion' });
     }
   };
 
@@ -233,7 +233,7 @@ export default function AdminImportPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
             <div>
-              <h3 className="text-sm font-semibold text-amber-800">BÊTA — Temporairement désactivé</h3>
+              <h3 className="text-sm font-semibold text-amber-800">BÊTA · Temporairement désactivé</h3>
               <p className="mt-1 text-sm text-amber-700">
                 L'import intelligent IA est temporairement désactivé pour cette version. Cette fonctionnalité sera prochainement disponible.
               </p>
@@ -258,7 +258,7 @@ export default function AdminImportPage() {
           Glissez vos fichiers ici ou cliquez pour sélectionner
         </p>
         <p className="mt-1 text-xs text-neutral-400">
-          PDF, JPG, JPEG ou PNG — {formatFileSize(MAX_ISSUE_UPLOAD_SIZE)} maximum
+          PDF, JPG, JPEG ou PNG · {formatFileSize(MAX_ISSUE_UPLOAD_SIZE)} maximum
         </p>
         <label className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/90">
           <FileText className="h-4 w-4" />
@@ -408,7 +408,7 @@ export default function AdminImportPage() {
                       {job.source_file_path.split('/').pop()}
                     </td>
                     <td className="px-4 py-3 text-sm text-neutral-500">{job.source_type}</td>
-                    <td className="px-4 py-3 text-sm text-neutral-500">{job.page_count ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-neutral-500">{job.page_count ?? '·'}</td>
                     <td className="px-4 py-3 text-sm text-neutral-400">
                       {new Date(job.created_at).toLocaleDateString('fr-FR')}
                     </td>

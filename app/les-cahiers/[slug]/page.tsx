@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   if (!issue) return { title: 'Cahier introuvable' };
 
   return {
-    title: `${issue.title} — Cahier N°${issue.issue_number}`,
+    title: `${issue.title} · Cahier N°${issue.issue_number}`,
     description: issue.description ?? `Cahier N°${issue.issue_number}`,
   };
 }

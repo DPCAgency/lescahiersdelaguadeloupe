@@ -68,7 +68,7 @@ function BlockView({ block }: { block: PageBlockData }) {
     return (
       <blockquote className={`border-l-4 border-ink pl-4 ${align} ${spaceBefore} ${spaceAfter}`}>
         <p className="font-display text-lg italic text-neutral-700">{c.text}</p>
-        {c.source && <cite className="mt-1 block text-xs text-neutral-400">— {c.source}</cite>}
+        {c.source && <cite className="mt-1 block text-xs text-neutral-400">· {c.source}</cite>}
       </blockquote>
     );
   }

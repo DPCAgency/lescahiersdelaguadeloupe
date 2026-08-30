@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     // Trigger the Netlify Background Function
     const siteUrl = process.env.URL || process.env.DEPLOY_URL || `https://${req.headers.get('host')}`;
 
-    console.log(`[import/analyze/start] Triggering background function — job=${jobId} url=${siteUrl}/process-import`);
+    console.log(`[import/analyze/start] Triggering background function · job=${jobId} url=${siteUrl}/process-import`);
 
     fetch(`${siteUrl}/process-import`, {
       method: 'POST',

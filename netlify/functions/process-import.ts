@@ -66,7 +66,7 @@ export default async function processImport(req: Request, _context: Context): Pr
   });
   const openai = new OpenAI({ apiKey: openaiKey });
 
-  console.log(`[process-import] Started — job=${jobId}`);
+  console.log(`[process-import] Started · job=${jobId}`);
 
   try {
     // 1. Get job
@@ -77,7 +77,7 @@ export default async function processImport(req: Request, _context: Context): Pr
       .maybeSingle();
 
     if (jobErr || !job) {
-      console.error(`[process-import] Job not found — job=${jobId}`);
+      console.error(`[process-import] Job not found · job=${jobId}`);
       return;
     }
 
@@ -92,7 +92,7 @@ export default async function processImport(req: Request, _context: Context): Pr
     });
 
     // 3. Download PDF from Storage
-    console.log(`[process-import] Downloading PDF — path=${sourceFilePath}`);
+    console.log(`[process-import] Downloading PDF · path=${sourceFilePath}`);
     const downloadResp = await fetch(`${supabaseUrl}/functions/v1/storage-admin?action=download`, {
       method: 'POST',
       headers: {
@@ -104,7 +104,7 @@ export default async function processImport(req: Request, _context: Context): Pr
 
     if (!downloadResp.ok) {
       const errText = await downloadResp.text();
-      console.error(`[process-import] PDF download failed — status=${downloadResp.status}`);
+      console.error(`[process-import] PDF download failed · status=${downloadResp.status}`);
       await updateJobProgress(jobId, supabaseUrl, anonKey, {
         p_status: 'failed',
         p_error_message: 'Fichier PDF introuvable dans le stockage',
@@ -114,7 +114,7 @@ export default async function processImport(req: Request, _context: Context): Pr
     }
 
     const pdfBuffer = Buffer.from(await downloadResp.arrayBuffer());
-    console.log(`[process-import] PDF downloaded — size=${(pdfBuffer.length / 1024 / 1024).toFixed(1)}MB`);
+    console.log(`[process-import] PDF downloaded · size=${(pdfBuffer.length / 1024 / 1024).toFixed(1)}MB`);
 
     if (pdfBuffer.length === 0) {
       await updateJobProgress(jobId, supabaseUrl, anonKey, {
@@ -134,7 +134,7 @@ export default async function processImport(req: Request, _context: Context): Pr
       purpose: 'user_data',
     });
 
-    console.log(`[process-import] File uploaded to OpenAI — file_id=${file.id}`);
+    console.log(`[process-import] File uploaded to OpenAI · file_id=${file.id}`);
     await updateJobProgress(jobId, supabaseUrl, anonKey, {
       p_progress: 25,
       p_metadata_merge: { openai_file_id: file.id } as unknown as never,
@@ -265,7 +265,7 @@ IMPORTANT:
       return;
     }
 
-    console.log(`[process-import] OpenAI response received — pages=${analysis.document.page_count} blocks=${analysis.blocks.length} articles=${analysis.article_groups.length}`);
+    console.log(`[process-import] OpenAI response received · pages=${analysis.document.page_count} blocks=${analysis.blocks.length} articles=${analysis.article_groups.length}`);
     await updateJobProgress(jobId, supabaseUrl, anonKey, {
       p_progress: 80,
       p_total_pages: analysis.document.page_count,
@@ -307,7 +307,7 @@ IMPORTANT:
       }
     }
 
-    console.log(`[process-import] Blocks inserted — count=${blockInserts.length}`);
+    console.log(`[process-import] Blocks inserted · count=${blockInserts.length}`);
     await updateJobProgress(jobId, supabaseUrl, anonKey, { p_progress: 90 });
 
     // 8. Insert article suggestions
@@ -346,15 +346,15 @@ IMPORTANT:
     // 10. Clean up OpenAI file
     try {
       await openai.files.delete(file.id);
-      console.log(`[process-import] OpenAI file deleted — file_id=${file.id}`);
+      console.log(`[process-import] OpenAI file deleted · file_id=${file.id}`);
     } catch {
       // non-critical
     }
 
-    console.log(`[process-import] Completed — job=${jobId} blocks=${blockInserts.length} articles=${suggestionInserts.length}`);
+    console.log(`[process-import] Completed · job=${jobId} blocks=${blockInserts.length} articles=${suggestionInserts.length}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown';
-    console.error(`[process-import] Fatal error — job=${jobId} error=${msg}`);
+    console.error(`[process-import] Fatal error · job=${jobId} error=${msg}`);
     await updateJobProgress(jobId, supabaseUrl, anonKey, {
       p_status: 'failed',
       p_error_message: msg.slice(0, 500),

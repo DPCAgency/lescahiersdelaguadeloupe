@@ -55,7 +55,7 @@ export function MesCahiersClient({ issues }: MesCahiersProps) {
                 <div className="flex items-center justify-between">
                   <div>
                     <Link href={`/admin/cahiers/${issue.id as string}/edit`} className="text-sm font-medium text-neutral-800 hover:text-ink">
-                      N°{issue.issue_number as string} — {issue.title as string}
+                      N°{issue.issue_number as string} · {issue.title as string}
                     </Link>
                     <p className="mt-1 text-xs text-neutral-400">
                       Modifié le {new Date(issue.updated_at as string).toLocaleDateString('fr-FR')}

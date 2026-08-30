@@ -62,13 +62,13 @@ export function Timeline({ events }: TimelineProps) {
                     <p className="text-[15px] leading-relaxed text-text">{event.description}</p>
                     {event.people && (
                       <p className="mt-2 text-[12px] text-muted">
-                        <span className="font-semibold uppercase tracking-[0.14em]">Personnes concernées — </span>
+                        <span className="font-semibold uppercase tracking-[0.14em]">Personnes concernées · </span>
                         {event.people}
                       </p>
                     )}
                     {event.source && (
                       <p className="mt-1 text-[12px] text-muted">
-                        <span className="font-semibold uppercase tracking-[0.14em]">Source — </span>
+                        <span className="font-semibold uppercase tracking-[0.14em]">Source · </span>
                         {event.source}
                       </p>
                     )}

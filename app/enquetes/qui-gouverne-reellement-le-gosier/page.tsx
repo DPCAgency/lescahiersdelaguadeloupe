@@ -26,7 +26,7 @@ const TOC: TocItem[] = [
   { id: 'chapitre-05', label: 'Cabinet et entrepreneur', index: '05' },
   { id: 'chapitre-06', label: 'De la campagne à la subvention', index: '06' },
   { id: 'chapitre-07', label: 'Conclusion', index: '07' },
-  { id: 'droit-reponse', label: 'Droit de réponse', index: '—' },
+  { id: 'droit-reponse', label: 'Droit de réponse', index: '·' },
 ];
 
 export const metadata = {
@@ -35,7 +35,7 @@ export const metadata = {
     'Maire, élus, cabinet, administration, acteurs économiques : où s’exerce réellement l’influence dans la fabrication de la décision publique au Gosier ?',
   openGraph: {
     type: 'article',
-    title: 'Qui gouverne réellement Le Gosier ? — Les Cahiers de la Guadeloupe',
+    title: 'Qui gouverne réellement Le Gosier ? · Les Cahiers de la Guadeloupe',
     description:
       'Enquête en 7 chapitres sur la gouvernance locale au Gosier. Comprendre les rôles, les intérêts et les décisions publiques.',
     locale: 'fr_GP',
@@ -44,7 +44,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Qui gouverne réellement Le Gosier ?',
-    description: 'Enquête — Les Cahiers de la Guadeloupe N°2',
+    description: 'Enquête · Les Cahiers de la Guadeloupe N°2',
   },
 };
 
@@ -75,7 +75,7 @@ export default function EnquetePage() {
               <span className="h-px w-8 bg-border" aria-hidden />
               <span className="eyebrow-muted">Politique & Institutions</span>
               <span className="h-px w-8 bg-border" aria-hidden />
-              <span className="eyebrow-muted">N°2 — 15 août 2026</span>
+              <span className="eyebrow-muted">N°2 · 15 août 2026</span>
             </div>
             <h1 className="display-title mt-6 text-[40px] leading-[0.94] sm:text-[56px] lg:text-[72px] xl:text-[84px]">
               Qui gouverne
@@ -124,7 +124,7 @@ export default function EnquetePage() {
             />
           </div>
           <p className="container-editorial mt-3 pb-6 text-[12px] text-muted">
-            <span className="font-semibold uppercase tracking-[0.14em]">Crédit — </span>
+            <span className="font-semibold uppercase tracking-[0.14em]">Crédit · </span>
             Photographie d’illustration. Les Cahiers de la Guadeloupe, N°2, août 2026.
           </p>
         </div>
@@ -222,7 +222,7 @@ export default function EnquetePage() {
                 <EditorialBlock level="rapprochement" title="Liens croisés">
                   La rédaction a recensé plusieurs structures locales dont les dirigeants ou
                   bénéficiaires entretiennent des liens avec la décision publique municipale. Ces
-                  rapprochements sont présentés comme tels — jamais comme des preuves.
+                  rapprochements sont présentés comme tels · jamais comme des preuves.
                 </EditorialBlock>
               </div>
               <div className="mt-8 max-w-3xl">
@@ -251,7 +251,7 @@ export default function EnquetePage() {
               </div>
             </section>
 
-            {/* CHAPITRE 07 — CONCLUSION */}
+            {/* CHAPITRE 07 · CONCLUSION */}
             <section id="chapitre-07" className="mt-16 scroll-mt-32">
               <ChapterHeader index="7" title="Conclusion : qui gouverne réellement Le Gosier ?" />
               <div className="mt-6 body-prose max-w-2xl">

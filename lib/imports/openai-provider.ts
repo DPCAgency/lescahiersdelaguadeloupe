@@ -91,7 +91,7 @@ export class OpenAIVisionProvider implements DocumentAnalysisProvider {
         const pageAnalysis = await this.analyzePage(base64Image, pageNum);
         const pageBlockCount = pageAnalysis.blocks?.length ?? 0;
         const pageDuration = Date.now() - pageStart;
-        console.log(`[openai] Page ${pageNum}/${pageCount} — blocks=${pageBlockCount} duration=${pageDuration}ms`);
+        console.log(`[openai] Page ${pageNum}/${pageCount} · blocks=${pageBlockCount} duration=${pageDuration}ms`);
 
         for (const blk of pageAnalysis.blocks ?? []) {
         const blockType = VALID_TYPES.has(blk.type) ? blk.type : 'unknown';

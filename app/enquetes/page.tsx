@@ -43,7 +43,7 @@ export default function Page() {
                 />
               </div>
               <div className="flex flex-col justify-center lg:col-span-5">
-                <span className="eyebrow">Enquête — N°2</span>
+                <span className="eyebrow">Enquête · N°2</span>
                 <h2 className="article-title mt-3 text-[28px] leading-[1.05] sm:text-[36px] lg:text-[44px]">
                   Qui gouverne réellement Le Gosier ?
                 </h2>

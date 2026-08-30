@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     let finalRedirect = safeRedirect;
 
     if (profile && profile.status !== 'active') {
-      // Inactive account — sign out and reject
+      // Inactive account · sign out and reject
       await client.auth.signOut();
       return NextResponse.json({ error: 'Compte désactivé. Contactez l\'administrateur.' }, { status: 403 });
     }

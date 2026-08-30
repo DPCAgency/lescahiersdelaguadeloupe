@@ -24,26 +24,26 @@ export default async function Home() {
 
   return (
     <>
-      {/* 1 — Issue Bar */}
+      {/* 1 · Issue Bar */}
       <IssueBar number={issueBarData.number} date={issueBarData.date} tagline={issueBarData.tagline} />
 
-      {/* 2 — Grande Une */}
+      {/* 2 · Grande Une */}
       <HomeHero />
 
-      {/* 3 — Qui décide ? */}
+      {/* 3 · Qui décide ? */}
       <WhoDecides actors={data.whoDecides.actors} intro={data.whoDecides.intro} />
 
-      {/* 4 — Introduction éditoriale */}
+      {/* 4 · Introduction éditoriale */}
       <EditorialIntro
         label={data.editorialIntro.label}
         title={data.editorialIntro.title}
         question={data.editorialIntro.question}
       />
 
-      {/* 5 — Le dossier */}
+      {/* 5 · Le dossier */}
       <DossierSection chapters={data.dossier.chapters} />
 
-      {/* 6 — Chiffres clés */}
+      {/* 6 · Chiffres clés */}
       <section className="border-t border-border bg-background-soft">
         <div className="container-editorial py-14 lg:py-20">
           <SectionTitle eyebrow="Repères" title="Les chiffres clés" />
@@ -53,7 +53,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 7 — Chronologie */}
+      {/* 7 · Chronologie */}
       <section className="border-t border-border">
         <div className="container-editorial py-14 lg:py-20">
           <SectionTitle eyebrow="Repères" title="Chronologie" />
@@ -63,7 +63,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 8 — Question centrale */}
+      {/* 8 · Question centrale */}
       <section className="border-t border-border bg-background-soft">
         <div className="container-editorial py-14 lg:py-20">
           <div className="max-w-4xl">
@@ -72,26 +72,26 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* 9 — Dernières enquêtes */}
+      {/* 9 · Dernières enquêtes */}
       <LatestInvestigations articles={data.latestInvestigations} />
 
-      {/* 10 — Analyses & décryptages */}
+      {/* 10 · Analyses & décryptages */}
       <AnalysisSection articles={data.analysis} />
 
-      {/* 11 — Territoires */}
+      {/* 11 · Territoires */}
       <TerritoriesSection
         title={data.territories.title}
         subtitle={data.territories.subtitle}
         communes={data.territories.communes}
       />
 
-      {/* 12 — Dernier Cahier */}
+      {/* 12 · Dernier Cahier */}
       <LatestIssue issue={issueN02} />
 
-      {/* 13 — Notre méthode */}
+      {/* 13 · Notre méthode */}
       <MethodSection title={data.method.title} steps={data.method.steps} />
 
-      {/* 14 — Newsletter */}
+      {/* 14 · Newsletter */}
       <NewsletterSection
         title={data.newsletter.title}
         text={data.newsletter.text}

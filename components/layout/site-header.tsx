@@ -51,7 +51,7 @@ export function SiteHeader() {
 
   return (
     <>
-      {/* Bandeau éditorial — signature méthodologique */}
+      {/* Bandeau éditorial · signature méthodologique */}
       <div className="hidden border-b border-border bg-ink text-white md:block">
         <div className="container-editorial flex items-center justify-center py-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-white/80">
@@ -69,7 +69,7 @@ export function SiteHeader() {
           {/* Ligne principale */}
           <div className="flex items-center justify-between gap-4 py-3">
             {/* Logo */}
-            <Link href="/" className="group flex flex-col leading-none" aria-label="Accueil — Les Cahiers de la Guadeloupe">
+            <Link href="/" className="group flex flex-col leading-none" aria-label="Accueil · Les Cahiers de la Guadeloupe">
               <span className="font-serif text-[19px] font-bold tracking-[-0.01em] text-ink sm:text-[22px]">
                 Les Cahiers de la Guadeloupe
               </span>

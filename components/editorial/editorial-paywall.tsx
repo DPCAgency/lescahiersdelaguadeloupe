@@ -31,7 +31,7 @@ export function EditorialPaywall({ issueNumber, issuePrice }: EditorialPaywallPr
               href={`/les-cahiers/numero-02/acheter`}
               className="btn-editorial-outline"
             >
-              Acheter ce Cahier — {issuePrice}
+              Acheter ce Cahier · {issuePrice}
             </Link>
           )}
         </div>

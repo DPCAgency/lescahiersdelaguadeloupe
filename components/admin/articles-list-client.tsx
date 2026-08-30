@@ -189,10 +189,10 @@ export function ArticlesListClient({
                 </td>
                 <td className="px-4 py-3 text-sm text-neutral-500">{article.format}</td>
                 <td className="px-4 py-3 text-sm text-neutral-500">
-                  {article.categories?.[0]?.name ?? '—'}
+                  {article.categories?.[0]?.name ?? '·'}
                 </td>
                 <td className="px-4 py-3 text-sm text-neutral-500">
-                  {article.authors?.[0]?.name ?? '—'}
+                  {article.authors?.[0]?.name ?? '·'}
                 </td>
                 <td className="px-4 py-3">
                   <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[article.status] ?? ''}`}>

@@ -126,7 +126,7 @@ export default function AcheterPage() {
           <span className="eyebrow text-primary-dark">Achat du Cahier</span>
         </div>
         <h1 className="article-title mt-4 text-[24px] leading-[1.1]">
-          Cahier N°02 — Qui gouverne réellement Le Gosier ?
+          Cahier N°02 · Qui gouverne réellement Le Gosier ?
         </h1>
         <p className="mt-3 text-[14px] leading-relaxed text-text">
           Accès complet aux 11 pages du Cahier + téléchargement PDF.
@@ -154,7 +154,7 @@ export default function AcheterPage() {
           ) : (
             <>
               <CheckCircle2 className="h-4 w-4" />
-              Acheter — {price.toFixed(2)} €
+              Acheter · {price.toFixed(2)} €
             </>
           )}
         </button>

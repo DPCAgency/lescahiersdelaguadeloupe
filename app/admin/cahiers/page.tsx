@@ -78,7 +78,7 @@ export default async function AdminCahiersPage() {
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-sm text-neutral-500">
-                  {issue.publication_date ? new Date(issue.publication_date).toLocaleDateString('fr-FR') : '—'}
+                  {issue.publication_date ? new Date(issue.publication_date).toLocaleDateString('fr-FR') : '·'}
                 </td>
                 <td className="px-4 py-3">
                   <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[issue.status] ?? ''}`}>

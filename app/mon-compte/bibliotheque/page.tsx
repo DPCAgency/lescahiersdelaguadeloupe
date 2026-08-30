@@ -25,7 +25,7 @@ export default function Page() {
               </span>
               <div>
                 <p className="eyebrow">Mes Cahiers</p>
-                <h2 className="article-title mt-1 text-[22px]">{ISSUE_N2.number} — {ISSUE_N2.title}</h2>
+                <h2 className="article-title mt-1 text-[22px]">{ISSUE_N2.number} · {ISSUE_N2.title}</h2>
               </div>
             </div>
             <p className="mt-5 text-[14px] leading-relaxed text-text">

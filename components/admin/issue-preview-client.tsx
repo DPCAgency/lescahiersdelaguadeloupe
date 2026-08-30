@@ -147,15 +147,15 @@ export default function IssuePreviewPage({ issueId }: { issueId: string }) {
             </button>
             <div>
               <h2 className="font-display text-lg font-bold text-neutral-800">{issue.title || 'Sans titre'}</h2>
-              <p className="text-xs text-neutral-400">N°{issue.issue_number} — PDF Original</p>
+              <p className="text-xs text-neutral-400">N°{issue.issue_number} · PDF Original</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {!isPublished && (
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-700">
                 {issue.status === 'scheduled' && scheduledDate
-                  ? `Programmé — ${scheduledDate.toLocaleDateString('fr-FR')} à ${scheduledDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-                  : 'Brouillon — Non public'}
+                  ? `Programmé · ${scheduledDate.toLocaleDateString('fr-FR')} à ${scheduledDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                  : 'Brouillon · Non public'}
               </span>
             )}
             {isPublished && (
@@ -211,15 +211,15 @@ export default function IssuePreviewPage({ issueId }: { issueId: string }) {
           </button>
           <div>
             <h2 className="font-display text-lg font-bold text-neutral-800">{issue.title || 'Sans titre'}</h2>
-            <p className="text-xs text-neutral-400">N°{issue.issue_number} — Prévisualisation</p>
+            <p className="text-xs text-neutral-400">N°{issue.issue_number} · Prévisualisation</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           {!isPublished && (
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-amber-700">
               {issue.status === 'scheduled' && scheduledDate
-                ? `Programmé — ${scheduledDate.toLocaleDateString('fr-FR')} à ${scheduledDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-                : 'Brouillon — Non public'}
+                ? `Programmé · ${scheduledDate.toLocaleDateString('fr-FR')} à ${scheduledDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                : 'Brouillon · Non public'}
             </span>
           )}
           {isPublished && (

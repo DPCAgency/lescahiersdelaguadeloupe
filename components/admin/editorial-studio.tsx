@@ -501,7 +501,7 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] flex-col bg-neutral-100">
         <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-2">
-          <span className="text-xs font-medium text-neutral-500">Aperçu — Page {currentPage}</span>
+          <span className="text-xs font-medium text-neutral-500">Aperçu · Page {currentPage}</span>
           <button onClick={() => setPreviewMode(false)} className="flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50">
             <X className="h-3.5 w-3.5" /> Quitter l'aperçu
           </button>
@@ -826,7 +826,7 @@ function BlockContentRenderer({ block, isSelected, onUpdate }: {
           onBlur={(e) => onUpdate({ text: e.currentTarget.textContent ?? '' })}>
           {block.content_json.text || 'Citation...'}
         </p>
-        {block.content_json.source && <cite className="mt-1 block text-xs text-neutral-400">— {block.content_json.source}</cite>}
+        {block.content_json.source && <cite className="mt-1 block text-xs text-neutral-400">· {block.content_json.source}</cite>}
       </blockquote>
     );
   }
@@ -1163,7 +1163,7 @@ function PdfSection({ issueId, pdfFilePath, onUploaded, onDeleted }: {
         throw new Error(`Échec de l'upload vers Supabase: ${uploadError.message}`);
       }
 
-      // Step C: finalize — tell server to persist the path and clean old file
+      // Step C: finalize · tell server to persist the path and clean old file
       const completeResp = await fetch(`/api/admin/issues/${issueId}/pdf/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1239,7 +1239,7 @@ function PdfSection({ issueId, pdfFilePath, onUploaded, onDeleted }: {
             {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
             Téléverser le PDF
           </button>
-          <p className="text-[10px] text-neutral-300">PDF uniquement — 50 Mo maximum</p>
+          <p className="text-[10px] text-neutral-300">PDF uniquement · 50 Mo maximum</p>
         </div>
       )}
       {error && <p className="text-xs text-red-500">{error}</p>}

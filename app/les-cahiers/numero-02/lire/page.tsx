@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export const metadata = {
-  title: 'Lecture — Cahier N°02',
+  title: 'Lecture · Cahier N°02',
   description: 'Lisez le Cahier N°02 des Cahiers de la Guadeloupe page par page.',
   robots: { index: false, follow: true },
 };
@@ -91,7 +91,7 @@ export default async function ReaderPage({
   const { data: { session } } = await supabase.auth.getSession();
 
   // Admin preview modes: ?preview=buyer or ?preview=visitor
-  // Only works for editor/admin/super_admin — ignored for normal users
+  // Only works for editor/admin/super_admin · ignored for normal users
   let previewAsBuyer = false;
   let previewAsVisitor = false;
 

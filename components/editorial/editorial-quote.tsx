@@ -19,7 +19,7 @@ export function EditorialQuote({ text, author, role, level = 'temoignage' }: Edi
       {(author || role) && (
         <footer className="mt-5 text-[13px] text-muted">
           {author && <span className="font-semibold uppercase tracking-[0.14em] text-ink">{author}</span>}
-          {author && role && <span> — </span>}
+          {author && role && <span> · </span>}
           {role && <span>{role}</span>}
         </footer>
       )}

@@ -53,7 +53,7 @@ export const LEVEL_META: Record<
     label: 'Hypothèse',
     tagClass: 'tag-hypothesis',
     icon: Lightbulb,
-    description: 'Hypothèse — jamais présentée comme un fait.',
+    description: 'Hypothèse · jamais présentée comme un fait.',
   },
 };
 

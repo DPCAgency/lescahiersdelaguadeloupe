@@ -728,7 +728,7 @@ export default function ArticleEditorClient({
           {sourceInfo && (
             <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
               <p className="text-sm font-medium text-neutral-700">
-                Source : <strong>Cahier N°{sourceInfo.issue_number}</strong> — {sourceInfo.title}
+                Source : <strong>Cahier N°{sourceInfo.issue_number}</strong> · {sourceInfo.title}
               </p>
               <p className="mt-1 text-xs text-neutral-500">Pages {sourceInfo.page_start}–{sourceInfo.page_end}</p>
             </div>
@@ -740,7 +740,7 @@ export default function ArticleEditorClient({
                 {sourceBlocks.map((src, i) => (
                   <div key={i} className="rounded border border-neutral-100 bg-neutral-50 p-3">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">{src.type} · P{src.page_number}</span>
-                    <p className="mt-1 text-xs text-neutral-500">{src.source_text ?? '—'}</p>
+                    <p className="mt-1 text-xs text-neutral-500">{src.source_text ?? '·'}</p>
                   </div>
                 ))}
                 {sourceBlocks.length === 0 && <p className="text-xs text-neutral-400">Aucun bloc source.</p>}
@@ -770,7 +770,7 @@ export default function ArticleEditorClient({
               <figure className="mt-6">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={article.hero_image_path} alt={article.hero_caption ?? ''} className="w-full rounded-lg" />
-                {article.hero_caption && <figcaption className="mt-2 text-xs text-neutral-400">{article.hero_caption}{article.hero_credit ? ` — © ${article.hero_credit}` : ''}</figcaption>}
+                {article.hero_caption && <figcaption className="mt-2 text-xs text-neutral-400">{article.hero_caption}{article.hero_credit ? ` · © ${article.hero_credit}` : ''}</figcaption>}
               </figure>
             )}
             <div className="mt-8 space-y-4">
@@ -862,13 +862,13 @@ export default function ArticleEditorClient({
                 </Field>
                 <Field label="Catégorie">
                   <select value={article.category_id} onChange={(e) => updateField('category_id', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
-                    <option value="">—</option>
+                    <option value="">·</option>
                     {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                   </select>
                 </Field>
                 <Field label="Auteur">
                   <select value={article.author_id} onChange={(e) => updateField('author_id', e.target.value)} disabled={isAuthor} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm disabled:bg-neutral-50 disabled:text-neutral-400">
-                    <option value="">—</option>
+                    <option value="">·</option>
                     {authors.map((auth) => <option key={auth.id} value={auth.id}>{auth.name}</option>)}
                   </select>
                 </Field>
@@ -906,9 +906,9 @@ export default function ArticleEditorClient({
                       onChange={(e) => { setIssueSource((prev) => ({ ...prev, issue_id: e.target.value })); markDirty(); }}
                       className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
                     >
-                      <option value="">—</option>
+                      <option value="">·</option>
                       {issues.map((iss) => (
-                        <option key={iss.id} value={iss.id}>N°{iss.issue_number} — {iss.title}</option>
+                        <option key={iss.id} value={iss.id}>N°{iss.issue_number} · {iss.title}</option>
                       ))}
                     </select>
                   </Field>
@@ -996,7 +996,7 @@ function SaveIndicator({ state, onRetry }: { state: SaveState; onRetry: () => vo
   if (state === 'saved') return <span className="text-xs text-green-500">✓ Enregistré</span>;
   if (state === 'error') return (
     <button onClick={onRetry} className="flex items-center gap-1 text-xs text-red-500 hover:underline">
-      <AlertCircle className="h-3 w-3" /> Erreur — Réessayer
+      <AlertCircle className="h-3 w-3" /> Erreur · Réessayer
     </button>
   );
   return <span className="text-xs text-amber-500">● Modifications</span>;
@@ -1167,7 +1167,7 @@ function BlockPreview({ block }: { block: ArticleBlock }) {
     return (
       <blockquote className="border-l-4 border-ink pl-4 text-lg italic text-neutral-700">
         « {(content.quote as string) || ''} »
-        {content.author ? <footer className="mt-2 text-sm not-italic text-neutral-500">— {content.author as string}</footer> : null}
+        {content.author ? <footer className="mt-2 text-sm not-italic text-neutral-500">· {content.author as string}</footer> : null}
       </blockquote>
     );
   }

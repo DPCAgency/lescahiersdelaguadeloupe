@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     .maybeSingle();
 
   if (!issue) return { title: 'Cahier introuvable' };
-  return { title: `Lire — ${issue.title} (N°${issue.issue_number})` };
+  return { title: `Lire · ${issue.title} (N°${issue.issue_number})` };
 }
 
 export default async function IssuePdfReaderPage({ params }: { params: { slug: string } }) {
@@ -37,7 +37,7 @@ export default async function IssuePdfReaderPage({ params }: { params: { slug: s
             Retour au Cahier
           </Link>
           <span className="font-display text-sm font-semibold text-neutral-700">
-            Cahier N°{issue.issue_number} — {issue.title}
+            Cahier N°{issue.issue_number} · {issue.title}
           </span>
           <a
             href={`/api/issues/${issue.id}/download`}
