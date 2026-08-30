@@ -1,7 +1,37 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const ADMIN_ROLES = new Set(['editor', 'admin', 'super_admin']);
+const EDITORIAL_ROLES = new Set(['author', 'editor', 'admin', 'super_admin']);
+
+// Routes that only editor/admin/super_admin can access
+const ADMIN_ONLY_ROUTES = [
+  '/admin/settings',
+  '/admin/navigation',
+  '/admin/seo',
+  '/admin/auteurs',
+  '/admin/lecteurs',
+  '/admin/commandes',
+  '/admin/territoires',
+  '/admin/rubriques',
+  '/admin/pages',
+  '/admin/homepage',
+  '/admin/import',
+  '/admin/medias',
+  '/admin/cahiers',
+];
+
+// Routes that authors CAN access
+const AUTHOR_ALLOWED_ROUTES = [
+  '/admin/dashboard',
+  '/admin/mes-articles',
+  '/admin/articles',
+  '/admin/mon-profil',
+  '/admin/aide',
+];
+
+function isAdminOnlyRoute(pathname: string): boolean {
+  return ADMIN_ONLY_ROUTES.some((route) => pathname === route || pathname.startsWith(route + '/'));
+}
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -31,18 +61,22 @@ export async function middleware(req: NextRequest) {
         return redirectToLogin(req, pathname);
       }
 
-      // Check status if profile exists
       if (meData.status && meData.status !== 'active') {
         return redirectToLogin(req, pathname);
       }
 
-      // Admin routes require admin role
-      if (isAdmin && (!meData.role || !ADMIN_ROLES.has(meData.role))) {
-        // Reader trying to access admin — send to mon-compte
-        return NextResponse.redirect(new URL('/mon-compte', req.url));
+      if (isAdmin) {
+        // Must have an editorial role
+        if (!meData.role || !EDITORIAL_ROLES.has(meData.role)) {
+          return NextResponse.redirect(new URL('/mon-compte', req.url));
+        }
+
+        // Authors: restrict to allowed routes only
+        if (meData.role === 'author' && isAdminOnlyRoute(pathname)) {
+          return NextResponse.redirect(new URL('/admin/dashboard', req.url));
+        }
       }
 
-      // mon-compte routes: any authenticated active user is allowed
       return NextResponse.next();
     }
   } catch {

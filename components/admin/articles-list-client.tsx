@@ -26,6 +26,8 @@ interface Author { id: string; name: string; }
 const statusColors: Record<string, string> = {
   draft: 'bg-neutral-100 text-neutral-600',
   review: 'bg-amber-100 text-amber-700',
+  changes_requested: 'bg-red-100 text-red-700',
+  ready: 'bg-blue-100 text-blue-700',
   scheduled: 'bg-blue-100 text-blue-700',
   published: 'bg-green-100 text-green-700',
   archived: 'bg-neutral-200 text-neutral-500',
@@ -33,7 +35,9 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   draft: 'Brouillon',
-  review: 'En revue',
+  review: 'En validation',
+  changes_requested: 'Corrections demandées',
+  ready: 'Validé',
   scheduled: 'Programmé',
   published: 'Publié',
   archived: 'Archivé',

@@ -6,6 +6,7 @@ import {
   Save, Loader2, Plus, Trash2, ChevronUp, ChevronDown, Eye,
   ArrowLeft, GripVertical, GitCompare, Upload, AlertCircle,
   Send, Calendar, XCircle, EyeOff, ExternalLink,
+  CheckCircle, MessageSquare, Lock,
 } from 'lucide-react';
 import { RichTextEditor } from './rich-text-editor';
 import { RichTextRenderer } from '@/components/editorial/rich-text-renderer';
@@ -50,12 +51,18 @@ const blockColors: Record<string, string> = {
 
 const statusOptions = [
   { value: 'draft', label: 'Brouillon' },
-  { value: 'review', label: 'En revue' },
-  { value: 'ready', label: 'Prêt' },
+  { value: 'review', label: 'En validation' },
+  { value: 'changes_requested', label: 'Corrections demandées' },
+  { value: 'ready', label: 'Validé' },
   { value: 'scheduled', label: 'Programmé' },
   { value: 'published', label: 'Publié' },
   { value: 'archived', label: 'Archivé' },
 ];
+
+const statusLabels: Record<string, string> = {
+  draft: 'Brouillon', review: 'En validation', changes_requested: 'Corrections demandées',
+  ready: 'Validé', scheduled: 'Programmé', published: 'Publié', archived: 'Archivé',
+};
 
 const formatOptions = [
   { value: 'enquete', label: 'Enquête' },
@@ -109,6 +116,11 @@ export default function ArticleEditorClient({
   const [showSchedule, setShowSchedule] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
   const [issueSource, setIssueSource] = useState<{ issue_id: string; page_start: string; page_end: string }>({ issue_id: '', page_start: '', page_end: '' });
+  const [userRole, setUserRole] = useState<string>('admin');
+  const [feedback, setFeedback] = useState<{ id: string; message: string; created_at: string; created_by: string }[]>([]);
+  const [showRequestChanges, setShowRequestChanges] = useState(false);
+  const [changesMessage, setChangesMessage] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [article, setArticle] = useState({
     title: '',
@@ -178,11 +190,26 @@ export default function ArticleEditorClient({
         page_start: src?.page_start?.toString() ?? '',
         page_end: src?.page_end?.toString() ?? '',
       });
+      const fb = (d.feedback as { id: string; message: string; created_at: string; created_by: string }[]) ?? [];
+      setFeedback(fb);
     }
     setLoading(false);
   }, [articleId]);
 
   useEffect(() => { loadArticle(); }, [loadArticle]);
+
+  // Fetch user role
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (resp.ok) {
+          const data = await resp.json() as { role?: string };
+          if (data.role) setUserRole(data.role);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
 
   // Unsaved changes warning
   useEffect(() => {
@@ -345,6 +372,67 @@ export default function ArticleEditorClient({
 
   const handleSave = () => { doSave(true); };
 
+  const isAuthor = userRole === 'author';
+  const canPublish = ['editor', 'admin', 'super_admin'].includes(userRole);
+  const canReview = ['editor', 'admin', 'super_admin'].includes(userRole);
+  const isLocked = article.status === 'review' && isAuthor;
+
+  const handleSubmit = async () => {
+    if (currentIdRef.current === 'new') return;
+    if (!confirm('Soumettre cet article à la rédaction pour validation ?')) return;
+    setActionLoading(true);
+    setSubmitError(null);
+    try {
+      const resp = await fetch(`/api/admin/articles/${currentIdRef.current}/submit`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        if (d.missing) {
+          setSubmitError(`Impossible de soumettre. Éléments manquants: ${d.missing.join(', ')}`);
+        } else {
+          setSubmitError(d.error ?? 'Échec de la soumission');
+        }
+      } else {
+        setArticle((prev) => ({ ...prev, status: 'review' }));
+      }
+    } catch { setSubmitError('Échec de la soumission'); }
+    setActionLoading(false);
+  };
+
+  const handleValidate = async () => {
+    if (currentIdRef.current === 'new') return;
+    setActionLoading(true);
+    try {
+      const resp = await fetch(`/api/admin/articles/${currentIdRef.current}/validate`, {
+        method: 'POST', credentials: 'same-origin',
+      });
+      if (resp.ok) setArticle((prev) => ({ ...prev, status: 'ready' }));
+    } catch { /* ignore */ }
+    setActionLoading(false);
+  };
+
+  const handleRequestChanges = async () => {
+    if (currentIdRef.current === 'new' || !changesMessage.trim()) return;
+    setActionLoading(true);
+    try {
+      const resp = await fetch(`/api/admin/articles/${currentIdRef.current}/request-changes`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: changesMessage }),
+      });
+      if (resp.ok) {
+        setArticle((prev) => ({ ...prev, status: 'changes_requested' }));
+        setShowRequestChanges(false);
+        setChangesMessage('');
+        // Reload feedback
+        loadArticle();
+      }
+    } catch { /* ignore */ }
+    setActionLoading(false);
+  };
+
   const handlePublish = async () => {
     if (currentIdRef.current === 'new') return;
     setActionLoading(true);
@@ -496,7 +584,7 @@ export default function ArticleEditorClient({
             {saveState === 'saving' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Enregistrer
           </button>
-          {currentId !== 'new' && article.status !== 'published' && (
+          {currentId !== 'new' && article.status !== 'published' && canPublish && (
             <button
               onClick={handlePublish}
               disabled={actionLoading}
@@ -506,7 +594,7 @@ export default function ArticleEditorClient({
               Publier
             </button>
           )}
-          {currentId !== 'new' && article.status === 'published' && (
+          {currentId !== 'new' && article.status === 'published' && canPublish && (
             <button
               onClick={handleUnpublish}
               disabled={actionLoading}
@@ -516,8 +604,101 @@ export default function ArticleEditorClient({
               Dépublier
             </button>
           )}
+          {/* Author: Submit to review */}
+          {currentId !== 'new' && isAuthor && (article.status === 'draft' || article.status === 'changes_requested') && (
+            <button
+              onClick={handleSubmit}
+              disabled={actionLoading}
+              className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Soumettre à la rédaction
+            </button>
+          )}
+          {/* Editor: Validate / Request changes */}
+          {currentId !== 'new' && canReview && article.status === 'review' && (
+            <>
+              <button
+                onClick={handleValidate}
+                disabled={actionLoading}
+                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                Valider
+              </button>
+              <button
+                onClick={() => setShowRequestChanges(true)}
+                disabled={actionLoading}
+                className="flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Demander corrections
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Submit error */}
+      {submitError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-sm text-red-700">{submitError}</p>
+        </div>
+      )}
+
+      {/* Review lock notice for authors */}
+      {isLocked && (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <Lock className="h-4 w-4 text-blue-600" />
+          <span className="text-sm font-medium text-blue-700">Article en cours de relecture. L'édition est verrouillée.</span>
+        </div>
+      )}
+
+      {/* Changes requested feedback */}
+      {article.status === 'changes_requested' && feedback.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-amber-600" />
+            <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-amber-700">Corrections demandées par la rédaction</h3>
+          </div>
+          <div className="mt-3 space-y-2">
+            {feedback.map((fb) => (
+              <div key={fb.id} className="rounded-lg border border-amber-200 bg-white p-3">
+                <p className="text-sm text-neutral-700">{fb.message}</p>
+                <p className="mt-1 text-xs text-neutral-400">{new Date(fb.created_at).toLocaleString('fr-FR')}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Request changes modal */}
+      {showRequestChanges && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="font-display text-lg font-bold text-neutral-800">Demander des corrections</h3>
+            <p className="mt-1 text-sm text-neutral-500">Indiquez les corrections demandées à l'auteur.</p>
+            <textarea
+              value={changesMessage}
+              onChange={(e) => setChangesMessage(e.target.value)}
+              rows={4}
+              className="mt-4 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm"
+              placeholder="Merci de vérifier la source du chiffre indiqué dans le troisième paragraphe et d'ajouter le crédit de la photographie principale."
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setShowRequestChanges(false)} className="rounded-lg px-4 py-2 text-sm text-neutral-500 hover:text-neutral-700">Annuler</button>
+              <button
+                onClick={handleRequestChanges}
+                disabled={actionLoading || !changesMessage.trim()}
+                className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Envoyer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {article.status === 'scheduled' && article.published_at && (
         <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
@@ -670,8 +851,8 @@ export default function ArticleEditorClient({
               <h3 className="mb-4 font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Publication</h3>
               <div className="space-y-4">
                 <Field label="Statut">
-                  <select value={article.status} onChange={(e) => updateField('status', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
-                    {statusOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  <select value={article.status} onChange={(e) => updateField('status', e.target.value)} disabled={isLocked} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm disabled:bg-neutral-50 disabled:text-neutral-400">
+                    {(isAuthor ? statusOptions.filter((opt) => ['draft', 'review', 'changes_requested'].includes(opt.value)) : statusOptions).map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                   </select>
                 </Field>
                 <Field label="Format">
@@ -686,15 +867,17 @@ export default function ArticleEditorClient({
                   </select>
                 </Field>
                 <Field label="Auteur">
-                  <select value={article.author_id} onChange={(e) => updateField('author_id', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                  <select value={article.author_id} onChange={(e) => updateField('author_id', e.target.value)} disabled={isAuthor} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm disabled:bg-neutral-50 disabled:text-neutral-400">
                     <option value="">—</option>
                     {authors.map((auth) => <option key={auth.id} value={auth.id}>{auth.name}</option>)}
                   </select>
                 </Field>
-                <label className="flex items-center gap-2 text-sm text-neutral-600">
-                  <input type="checkbox" checked={article.featured} onChange={(e) => updateField('featured', e.target.checked)} className="h-4 w-4 accent-ink" />
-                  Article à la Une
-                </label>
+                {!isAuthor && (
+                  <label className="flex items-center gap-2 text-sm text-neutral-600">
+                    <input type="checkbox" checked={article.featured} onChange={(e) => updateField('featured', e.target.checked)} className="h-4 w-4 accent-ink" />
+                    Article à la Une
+                  </label>
+                )}
                 <Field label="Date de publication">
                   <input type="datetime-local" value={article.published_at} onChange={(e) => updateField('published_at', e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" />
                 </Field>

@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { requireAdmin } from '@/lib/auth/admin';
-import { getRequiredServiceRoleClient } from '@/lib/supabase/server';
+import { getEditorialUser, getPermissions } from '@/lib/permissions/editorial';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function adminClient(token: string) {
+function editorialClient(token: string) {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const key = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   return createClient(url, key, {
@@ -16,11 +15,11 @@ function adminClient(token: string) {
 }
 
 export async function GET(req: NextRequest, { params }: { params: { articleId: string } }) {
-  const user = await requireAdmin(req);
+  const user = await getEditorialUser(req);
   if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
   const token = req.cookies.get('sb-access-token')!.value;
-  const client = adminClient(token);
+  const client = editorialClient(token);
 
   const { data: article, error: aErr } = await client
     .from('articles')
@@ -48,21 +47,60 @@ export async function GET(req: NextRequest, { params }: { params: { articleId: s
     .eq('article_id', params.articleId)
     .maybeSingle();
 
+  const { data: feedback } = await client
+    .from('editorial_feedback')
+    .select('id, message, created_by, created_at, resolved_at')
+    .eq('article_id', params.articleId)
+    .order('created_at', { ascending: false });
+
   return NextResponse.json({
     ...article,
     blocks: blocks ?? [],
     territory_ids: (territories ?? []).map((t) => t.territory_id),
     issue_source: issueSource ?? null,
+    feedback: feedback ?? [],
   });
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: { articleId: string } }) {
-  const user = await requireAdmin(req);
+  const user = await getEditorialUser(req);
   if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-  const body = await req.json() as Record<string, unknown>;
+  const perms = getPermissions(user.role);
   const token = req.cookies.get('sb-access-token')!.value;
-  const client = adminClient(token);
+  const client = editorialClient(token);
+
+  // Fetch article to check ownership
+  const { data: existing } = await client
+    .from('articles')
+    .select('created_by, status')
+    .eq('id', params.articleId)
+    .maybeSingle();
+
+  if (!existing) return NextResponse.json({ error: 'Article introuvable' }, { status: 404 });
+
+  // Ownership check: authors can only edit their own
+  if (!perms.canEditAllArticles && existing.created_by !== user.id) {
+    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  }
+
+  const body = await req.json() as Record<string, unknown>;
+
+  // Authors cannot set status to published/scheduled/ready/archived
+  const restrictedStatus = ['published', 'scheduled', 'ready', 'archived'];
+  if (!perms.canPublish && body.status && restrictedStatus.includes(body.status as string)) {
+    return NextResponse.json({ error: 'Accès refusé: vous ne pouvez pas publier cet article' }, { status: 403 });
+  }
+
+  // Authors cannot change created_by
+  if (!perms.canEditAllArticles && body.created_by && body.created_by !== user.id) {
+    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  }
+
+  // Authors cannot change featured
+  if (!perms.canEditAllArticles && 'featured' in body) {
+    delete body.featured;
+  }
 
   const allowed = [
     'title', 'subtitle', 'excerpt', 'format', 'category_id', 'author_id',
@@ -75,21 +113,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { articleId:
     if (key in body) update[key] = body[key];
   }
 
-  // When publishing, set published_at
   if (update.status === 'published' && !update.published_at) {
     update.published_at = new Date().toISOString();
-  }
-
-  // Concurrency check
-  if (body.updated_at) {
-    const { data: current } = await client
-      .from('articles')
-      .select('updated_at')
-      .eq('id', params.articleId)
-      .maybeSingle();
-    if (current && new Date(current.updated_at) > new Date(body.updated_at as string)) {
-      return NextResponse.json({ error: 'Une version plus récente existe. Rechargez la page.' }, { status: 409 });
-    }
   }
 
   const { data, error } = await client
@@ -116,7 +141,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { articleId:
     }
   }
 
-  // Replace territories if provided
   if (Array.isArray(body.territory_ids)) {
     await client.from('article_territories').delete().eq('article_id', params.articleId);
     if (body.territory_ids.length > 0) {
@@ -126,7 +150,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { articleId:
     }
   }
 
-  // Replace issue source if provided
   if (body.issue_source !== undefined) {
     await client.from('article_issue_sources').delete().eq('article_id', params.articleId);
     const src = body.issue_source as { issue_id?: string; page_start?: number; page_end?: number; source_notes?: string } | null;
@@ -141,7 +164,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { articleId:
     }
   }
 
-  // Create revision snapshot
   await client.from('content_revisions').insert({
     resource_type: 'article',
     resource_id: params.articleId,
@@ -153,52 +175,57 @@ export async function PATCH(req: NextRequest, { params }: { params: { articleId:
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { articleId: string } }) {
-  const user = await requireAdmin(req);
+  const user = await getEditorialUser(req);
   if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-  try {
-    const admin = getRequiredServiceRoleClient();
+  const perms = getPermissions(user.role);
+  const token = req.cookies.get('sb-access-token')!.value;
+  const client = editorialClient(token);
 
-    // Fetch the article to check status
-    const { data: article } = await admin
-      .from('articles')
-      .select('status')
-      .eq('id', params.articleId)
-      .maybeSingle();
+  const { data: article } = await client
+    .from('articles')
+    .select('status, created_by')
+    .eq('id', params.articleId)
+    .maybeSingle();
 
-    if (!article) return NextResponse.json({ error: 'Article introuvable' }, { status: 404 });
+  if (!article) return NextResponse.json({ error: 'Article introuvable' }, { status: 404 });
 
-    // Published → archive (soft delete)
-    if (article.status === 'published') {
-      const { error } = await admin
-        .from('articles')
-        .update({ status: 'archived' })
-        .eq('id', params.articleId);
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-      return NextResponse.json({ success: true, archived: true });
-    }
-
-    // Draft/review/scheduled/archived → hard delete with cascade cleanup
-
-    // 1. Delete dependent rows
-    await admin.from('article_blocks').delete().eq('article_id', params.articleId);
-    await admin.from('article_territories').delete().eq('article_id', params.articleId);
-    await admin.from('article_issue_sources').delete().eq('article_id', params.articleId);
-    await admin.from('content_revisions')
-      .delete()
-      .eq('resource_type', 'article')
-      .eq('resource_id', params.articleId);
-
-    // 2. Delete the article row
-    const { error: deleteError } = await admin
-      .from('articles')
-      .delete()
-      .eq('id', params.articleId);
-
-    if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
-    return NextResponse.json({ success: true, deleted: true });
-  } catch (err) {
-    console.error('[ARTICLE DELETE]', { articleId: params.articleId, error: err });
-    return NextResponse.json({ error: 'Configuration Storage serveur manquante' }, { status: 500 });
+  // Ownership check
+  if (!perms.canEditAllArticles && article.created_by !== user.id) {
+    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
   }
+
+  // Published → archive (soft delete)
+  if (article.status === 'published') {
+    if (!perms.canPublish) return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    const { error } = await client
+      .from('articles')
+      .update({ status: 'archived' })
+      .eq('id', params.articleId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, archived: true });
+  }
+
+  // Authors can only delete their own drafts
+  if (!perms.canDeleteAny && article.status !== 'draft') {
+    return NextResponse.json({ error: 'Vous ne pouvez supprimer que vos brouillons' }, { status: 403 });
+  }
+
+  // Hard delete with cascade cleanup
+  await client.from('article_blocks').delete().eq('article_id', params.articleId);
+  await client.from('article_territories').delete().eq('article_id', params.articleId);
+  await client.from('article_issue_sources').delete().eq('article_id', params.articleId);
+  await client.from('editorial_feedback').delete().eq('article_id', params.articleId);
+  await client.from('content_revisions')
+    .delete()
+    .eq('resource_type', 'article')
+    .eq('resource_id', params.articleId);
+
+  const { error: deleteError } = await client
+    .from('articles')
+    .delete()
+    .eq('id', params.articleId);
+
+  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
+  return NextResponse.json({ success: true, deleted: true });
 }

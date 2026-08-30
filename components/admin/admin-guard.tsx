@@ -7,7 +7,23 @@ interface AdminGuardProps {
   children: ReactNode;
 }
 
-const ADMIN_ROLES = new Set(['editor', 'admin', 'super_admin']);
+const EDITORIAL_ROLES = new Set(['author', 'editor', 'admin', 'super_admin']);
+
+const ADMIN_ONLY_ROUTES = [
+  '/admin/settings',
+  '/admin/navigation',
+  '/admin/seo',
+  '/admin/auteurs',
+  '/admin/lecteurs',
+  '/admin/commandes',
+  '/admin/territoires',
+  '/admin/rubriques',
+  '/admin/pages',
+  '/admin/homepage',
+  '/admin/import',
+  '/admin/medias',
+  '/admin/cahiers',
+];
 
 export function AdminGuard({ children }: AdminGuardProps) {
   const router = useRouter();
@@ -26,7 +42,17 @@ export function AdminGuard({ children }: AdminGuardProps) {
 
         const data = await resp.json() as { id?: string; role?: string; status?: string };
 
-        if (data.id && data.role && ADMIN_ROLES.has(data.role) && data.status === 'active') {
+        if (data.id && data.role && EDITORIAL_ROLES.has(data.role) && data.status === 'active') {
+          // Author role: check route access
+          if (data.role === 'author') {
+            const isRestricted = ADMIN_ONLY_ROUTES.some(
+              (route) => pathname === route || pathname.startsWith(route + '/'),
+            );
+            if (isRestricted) {
+              router.replace('/admin/dashboard');
+              return;
+            }
+          }
           setStatus('authorized');
         } else {
           setStatus('unauthorized');

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   Home,
@@ -18,29 +19,56 @@ import {
   ShoppingCart,
   UserCircle,
   Palette,
+  HelpCircle,
+  PenLine,
 } from 'lucide-react';
 import { AdminGuard } from './admin-guard';
 
-const navItems = [
-  { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-  { label: 'Accueil', href: '/admin/homepage', icon: Home },
-  { label: 'Articles', href: '/admin/articles', icon: FileText },
-  { label: 'Cahiers', href: '/admin/cahiers', icon: BookOpen },
-  { label: 'Import intelligent', href: '/admin/import', icon: ScanLine },
-  { label: 'Médias', href: '/admin/medias', icon: ImageIcon },
-  { label: 'Rubriques', href: '/admin/rubriques', icon: FolderTree },
-  { label: 'Territoires', href: '/admin/territoires', icon: MapPin },
-  { label: 'Auteurs', href: '/admin/auteurs', icon: Users },
-  { label: 'Navigation', href: '/admin/navigation', icon: Menu },
-  { label: 'Pages', href: '/admin/pages', icon: FileText },
-  { label: 'Lecteurs', href: '/admin/lecteurs', icon: UserCircle },
-  { label: 'Commandes', href: '/admin/commandes', icon: ShoppingCart },
-  { label: 'SEO', href: '/admin/seo', icon: Search },
-  { label: 'Paramètres', href: '/admin/settings', icon: Settings },
+interface NavItem {
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  roles: string[];
+}
+
+const allNavItems: NavItem[] = [
+  { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard, roles: ['author', 'editor', 'admin', 'super_admin'] },
+  { label: 'Mes articles', href: '/admin/mes-articles', icon: PenLine, roles: ['author'] },
+  { label: 'Articles', href: '/admin/articles', icon: FileText, roles: ['editor', 'admin', 'super_admin'] },
+  { label: 'Accueil', href: '/admin/homepage', icon: Home, roles: ['editor', 'admin', 'super_admin'] },
+  { label: 'Cahiers', href: '/admin/cahiers', icon: BookOpen, roles: ['editor', 'admin', 'super_admin'] },
+  { label: 'Import intelligent', href: '/admin/import', icon: ScanLine, roles: ['admin', 'super_admin'] },
+  { label: 'Médias', href: '/admin/medias', icon: ImageIcon, roles: ['author', 'editor', 'admin', 'super_admin'] },
+  { label: 'Rubriques', href: '/admin/rubriques', icon: FolderTree, roles: ['admin', 'super_admin'] },
+  { label: 'Territoires', href: '/admin/territoires', icon: MapPin, roles: ['admin', 'super_admin'] },
+  { label: 'Auteurs', href: '/admin/auteurs', icon: Users, roles: ['admin', 'super_admin'] },
+  { label: 'Navigation', href: '/admin/navigation', icon: Menu, roles: ['admin', 'super_admin'] },
+  { label: 'Pages', href: '/admin/pages', icon: FileText, roles: ['admin', 'super_admin'] },
+  { label: 'Lecteurs', href: '/admin/lecteurs', icon: UserCircle, roles: ['admin', 'super_admin'] },
+  { label: 'Commandes', href: '/admin/commandes', icon: ShoppingCart, roles: ['admin', 'super_admin'] },
+  { label: 'SEO', href: '/admin/seo', icon: Search, roles: ['admin', 'super_admin'] },
+  { label: 'Mon profil', href: '/admin/mon-profil', icon: UserCircle, roles: ['author', 'editor', 'admin', 'super_admin'] },
+  { label: 'Aide', href: '/admin/aide', icon: HelpCircle, roles: ['author', 'editor', 'admin', 'super_admin'] },
+  { label: 'Paramètres', href: '/admin/settings', icon: Settings, roles: ['admin', 'super_admin'] },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [role, setRole] = useState<string>('admin');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (resp.ok) {
+          const data = await resp.json() as { role?: string };
+          if (data.role) setRole(data.role);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const navItems = allNavItems.filter((item) => item.roles.includes(role));
 
   return (
     <AdminGuard>
@@ -50,7 +78,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <div className="flex h-16 items-center border-b border-neutral-200 px-6">
             <Link href="/admin/dashboard" className="flex items-center gap-2">
               <span className="font-display text-lg font-bold tracking-tight text-ink">Les Cahiers</span>
-              <span className="rounded bg-ink px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">Admin</span>
+              <span className="rounded bg-ink px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
+                {role === 'author' ? 'Auteur' : 'Admin'}
+              </span>
             </Link>
           </div>
           <nav className="flex flex-col gap-0.5 overflow-y-auto p-3">
