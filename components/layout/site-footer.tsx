@@ -16,16 +16,19 @@ const SECONDARY = [
   { label: 'Archives', href: '/archives' },
   { label: 'Sujets', href: '/sujets' },
   { label: 'Communes', href: '/communes' },
-  { label: 'La rédaction', href: '/redaction' },
   { label: 'Notre méthode', href: '/notre-methode' },
-  { label: 'Droit de réponse', href: '/droit-de-reponse' },
+];
+
+const REDACTION_LINKS = [
+  { label: 'La rédaction', href: '/redaction' },
+  { label: 'Auteurs', href: '/auteurs' },
   { label: 'Contact', href: '/contact' },
 ];
 
 const LEGAL = [
   { label: 'Mentions légales', href: '/mentions-legales' },
   { label: 'Politique de confidentialité', href: '/politique-confidentialite' },
-  { label: 'Cookies', href: '/cookies' },
+  { label: 'Droit de réponse', href: '/droit-de-reponse' },
 ];
 
 export function SiteFooter() {
@@ -92,6 +95,16 @@ export function SiteFooter() {
             <p className="eyebrow-ink mb-4">Le média</p>
             <ul className="flex flex-col gap-2.5">
               {SECONDARY.map((s) => (
+                <li key={s.href}>
+                  <Link href={s.href} className="link-underline text-[14px] font-medium text-text">
+                    {s.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <p className="eyebrow-ink mt-6 mb-4">La rédaction</p>
+            <ul className="flex flex-col gap-2.5">
+              {REDACTION_LINKS.map((s) => (
                 <li key={s.href}>
                   <Link href={s.href} className="link-underline text-[14px] font-medium text-text">
                     {s.label}

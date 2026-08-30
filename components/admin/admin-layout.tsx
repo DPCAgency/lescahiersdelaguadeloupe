@@ -21,6 +21,8 @@ import {
   Palette,
   HelpCircle,
   PenLine,
+  Mail,
+  Scale,
 } from 'lucide-react';
 import { AdminGuard } from './admin-guard';
 
@@ -45,6 +47,8 @@ const allNavItems: NavItem[] = [
   { label: 'Auteurs', href: '/admin/auteurs', icon: Users, roles: ['admin', 'super_admin'] },
   { label: 'Navigation', href: '/admin/navigation', icon: Menu, roles: ['admin', 'super_admin'] },
   { label: 'Pages', href: '/admin/pages', icon: FileText, roles: ['admin', 'super_admin'] },
+  { label: 'Messages', href: '/admin/messages', icon: Mail, roles: ['editor', 'admin', 'super_admin'] },
+  { label: 'Droits de réponse', href: '/admin/droits-de-reponse', icon: Scale, roles: ['editor', 'admin', 'super_admin'] },
   { label: 'Lecteurs', href: '/admin/lecteurs', icon: UserCircle, roles: ['admin', 'super_admin'] },
   { label: 'Commandes', href: '/admin/commandes', icon: ShoppingCart, roles: ['admin', 'super_admin'] },
   { label: 'SEO', href: '/admin/seo', icon: Search, roles: ['admin', 'super_admin'] },
