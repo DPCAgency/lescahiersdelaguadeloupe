@@ -34,6 +34,7 @@ interface NavItem {
 const allNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard, roles: ['author', 'editor', 'admin', 'super_admin'] },
   { label: 'Mes articles', href: '/admin/mes-articles', icon: PenLine, roles: ['author'] },
+  { label: 'Mes Cahiers', href: '/admin/mes-cahiers', icon: BookOpen, roles: ['author'] },
   { label: 'Articles', href: '/admin/articles', icon: FileText, roles: ['editor', 'admin', 'super_admin'] },
   { label: 'Accueil', href: '/admin/homepage', icon: Home, roles: ['editor', 'admin', 'super_admin'] },
   { label: 'Cahiers', href: '/admin/cahiers', icon: BookOpen, roles: ['editor', 'admin', 'super_admin'] },

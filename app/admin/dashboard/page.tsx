@@ -70,6 +70,7 @@ export default async function DashboardPage() {
       { count: scheduled },
       { count: published },
       { data: myArticles },
+      { data: myIssues },
     ] = await Promise.all([
       supabaseAdmin.from('articles').select('*', { count: 'exact', head: true }).eq('created_by', user!.id).eq('status', 'draft'),
       supabaseAdmin.from('articles').select('*', { count: 'exact', head: true }).eq('created_by', user!.id).eq('status', 'changes_requested'),
@@ -77,6 +78,7 @@ export default async function DashboardPage() {
       supabaseAdmin.from('articles').select('*', { count: 'exact', head: true }).eq('created_by', user!.id).eq('status', 'scheduled'),
       supabaseAdmin.from('articles').select('*', { count: 'exact', head: true }).eq('created_by', user!.id).eq('status', 'published'),
       supabaseAdmin.from('articles').select('id, title, status, updated_at').eq('created_by', user!.id).order('updated_at', { ascending: false }).limit(10),
+      supabaseAdmin.from('issues').select('id, issue_number, title, status, updated_at, issue_collaborators!inner(role)').eq('issue_collaborators.profile_id', user!.id).order('updated_at', { ascending: false }).limit(5),
     ]);
 
     const cards = [
@@ -149,6 +151,33 @@ export default async function DashboardPage() {
         </div>
 
         <div className="rounded-lg border border-neutral-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Mes Cahiers</h3>
+            <Link href="/admin/mes-cahiers" className="flex items-center gap-1 text-xs font-medium text-ink hover:underline">
+              Voir tout <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="mt-4 space-y-3">
+            {(myIssues ?? []).length === 0 && (
+              <p className="text-sm text-neutral-400">Aucun Cahier ne vous est assigné pour le moment.</p>
+            )}
+            {(myIssues ?? []).map((issue) => (
+              <div key={issue.id} className="flex items-center justify-between border-b border-neutral-100 pb-3 last:border-0">
+                <div>
+                  <Link href={`/admin/cahiers/${issue.id}/edit`} className="text-sm font-medium text-neutral-800 hover:text-ink">
+                    N°{issue.issue_number} — {issue.title}
+                  </Link>
+                  <p className="text-xs text-neutral-400">{new Date(issue.updated_at).toLocaleDateString('fr-FR')}</p>
+                </div>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[issue.status] ?? ''}`}>
+                  {statusLabels[issue.status] ?? issue.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-neutral-200 bg-white p-5">
           <Link href="/admin/aide" className="flex items-center gap-2 text-sm text-neutral-500 hover:text-ink">
             <ArrowRight className="h-4 w-4" /> Besoin d'aide ? Consultez le guide de rédaction et de publication.
           </Link>
@@ -195,6 +224,8 @@ export default async function DashboardPage() {
       { label: 'Validés', value: readyArticles ?? 0, icon: CheckCircle, color: 'text-blue-600' },
       { label: 'Programmés', value: scheduledArticles ?? 0, icon: Calendar, color: 'text-blue-600' },
       { label: 'Publiés', value: publishedArticles ?? 0, icon: CheckCircle, color: 'text-green-600' },
+      { label: 'Cahiers publiés', value: publishedIssues ?? 0, icon: BookOpen, color: 'text-green-600' },
+      { label: 'Cahiers brouillons', value: draftIssues ?? 0, icon: BookOpen, color: 'text-neutral-500' },
     ];
 
     const statusLabels: Record<string, string> = {
@@ -220,7 +251,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-7">
           {cards.map((card) => {
             const Icon = card.icon;
             return (
@@ -233,6 +264,31 @@ export default async function DashboardPage() {
               </div>
             );
           })}
+        </div>
+
+        <div className="rounded-lg border border-neutral-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Derniers Cahiers</h3>
+            <Link href="/admin/cahiers" className="flex items-center gap-1 text-xs font-medium text-ink hover:underline">
+              Voir tout <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <ul className="mt-4 space-y-3">
+            {(recentIssues ?? []).length === 0 && (
+              <li className="text-sm text-neutral-400">Aucun Cahier pour le moment.</li>
+            )}
+            {(recentIssues ?? []).map((issue) => (
+              <li key={issue.id} className="flex items-center justify-between border-b border-neutral-100 pb-3 last:border-0">
+                <div>
+                  <Link href={`/admin/cahiers/${issue.id}/edit`} className="text-sm font-medium text-neutral-800 hover:text-ink">
+                    N°{issue.issue_number} — {issue.title}
+                  </Link>
+                  <p className="text-xs text-neutral-400">{new Date(issue.created_at).toLocaleDateString('fr-FR')}</p>
+                </div>
+                <Link href={`/admin/cahiers/${issue.id}/edit`} className="rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50">Ouvrir Studio</Link>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="rounded-lg border border-neutral-200 bg-white p-5">

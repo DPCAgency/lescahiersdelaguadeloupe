@@ -21,8 +21,6 @@ const ADMIN_ONLY_ROUTES = [
   '/admin/pages',
   '/admin/homepage',
   '/admin/import',
-  '/admin/medias',
-  '/admin/cahiers',
 ];
 
 export function AdminGuard({ children }: AdminGuardProps) {
@@ -45,6 +43,16 @@ export function AdminGuard({ children }: AdminGuardProps) {
         if (data.id && data.role && EDITORIAL_ROLES.has(data.role) && data.status === 'active') {
           // Author role: check route access
           if (data.role === 'author') {
+            // Allow cahier edit/preview for assigned issues (API checks actual permission)
+            if (pathname.startsWith('/admin/cahiers/') && (pathname.endsWith('/edit') || pathname.endsWith('/preview'))) {
+              setStatus('authorized');
+              return;
+            }
+            // Allow mes-cahiers
+            if (pathname === '/admin/mes-cahiers' || pathname.startsWith('/admin/mes-cahiers/')) {
+              setStatus('authorized');
+              return;
+            }
             const isRestricted = ADMIN_ONLY_ROUTES.some(
               (route) => pathname === route || pathname.startsWith(route + '/'),
             );

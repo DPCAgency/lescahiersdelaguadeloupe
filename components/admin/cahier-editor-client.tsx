@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { Save, Loader2, ArrowLeft, Plus, Trash2, Eye, EyeOff, Upload, FileText, X } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Plus, Trash2, Eye, EyeOff, Upload, FileText, X, Send, CheckCircle, MessageSquare, Users, Lock } from 'lucide-react';
 
 interface IssuePage {
   id?: string;
@@ -19,7 +19,18 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(issueId !== 'new');
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'infos' | 'pages' | 'monetisation' | 'pdf'>('infos');
+  const [activeTab, setActiveTab] = useState<'infos' | 'pages' | 'monetisation' | 'pdf' | 'equipe'>('infos');
+  const [userRole, setUserRole] = useState<string>('admin');
+  const [feedback, setFeedback] = useState<{ id: string; message: string; created_at: string }[]>([]);
+  const [collaborators, setCollaborators] = useState<{ id: string; profile_id: string; role: string; profiles: { display_name: string; email: string } }[]>([]);
+  const [showAddCollab, setShowAddCollab] = useState(false);
+  const [availableProfiles, setAvailableProfiles] = useState<{ id: string; display_name: string; email: string }[]>([]);
+  const [newCollabProfile, setNewCollabProfile] = useState('');
+  const [newCollabRole, setNewCollabRole] = useState('contributor');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showRequestChanges, setShowRequestChanges] = useState(false);
+  const [changesMessage, setChangesMessage] = useState('');
 
   const [issue, setIssue] = useState({
     issue_number: '',
@@ -91,6 +102,23 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
           if (d.has_pdf) setPdfInfo({ path: d.path!, filename: d.filename!, size: d.size ?? null });
         }
       } catch { /* ignore */ }
+      // Load feedback
+      try {
+        const issueResp = await fetch(`/api/admin/issues/${issueId}`, { credentials: 'same-origin' });
+        if (issueResp.ok) {
+          const d = await issueResp.json() as Record<string, unknown>;
+          const fb = (d.feedback as { id: string; message: string; created_at: string }[]) ?? [];
+          setFeedback(fb);
+        }
+      } catch { /* ignore */ }
+      // Load collaborators
+      try {
+        const collabResp = await fetch(`/api/admin/issues/${issueId}/collaborators`, { credentials: 'same-origin' });
+        if (collabResp.ok) {
+          const d = await collabResp.json() as typeof collaborators;
+          setCollaborators(d);
+        }
+      } catch { /* ignore */ }
     }
     setLoading(false);
   }, [issueId]);
@@ -98,6 +126,25 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
   useEffect(() => {
     loadIssue();
   }, [loadIssue]);
+
+  // Fetch user role
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (resp.ok) {
+          const data = await resp.json() as { role?: string };
+          if (data.role) setUserRole(data.role);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const isAuthor = userRole === 'author';
+  const canPublish = ['editor', 'admin', 'super_admin'].includes(userRole);
+  const canReview = ['editor', 'admin', 'super_admin'].includes(userRole);
+  const canManageTeam = ['editor', 'admin', 'super_admin'].includes(userRole);
+  const isLocked = issue.status === 'review' && isAuthor;
 
   const updateField = (field: string, value: string | boolean) => {
     setIssue((prev) => ({ ...prev, [field]: value }));
@@ -230,6 +277,110 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
     setPdfUploading(false);
   };
 
+  const handleSubmit = async () => {
+    if (issueId === 'new') return;
+    if (!confirm('Soumettre ce Cahier à la rédaction pour validation ?')) return;
+    setActionLoading(true);
+    setSubmitError(null);
+    try {
+      const resp = await fetch(`/api/admin/issues/${issueId}/submit`, { method: 'POST', credentials: 'same-origin' });
+      if (!resp.ok) {
+        const d = await resp.json().catch(() => ({}));
+        setSubmitError(d.error ?? 'Échec de la soumission');
+      } else {
+        setIssue((prev) => ({ ...prev, status: 'review' }));
+      }
+    } catch { setSubmitError('Échec de la soumission'); }
+    setActionLoading(false);
+  };
+
+  const handleValidate = async () => {
+    if (issueId === 'new') return;
+    setActionLoading(true);
+    try {
+      const resp = await fetch(`/api/admin/issues/${issueId}/validate`, { method: 'POST', credentials: 'same-origin' });
+      if (resp.ok) setIssue((prev) => ({ ...prev, status: 'ready' }));
+    } catch { /* ignore */ }
+    setActionLoading(false);
+  };
+
+  const handleRequestChanges = async () => {
+    if (issueId === 'new' || !changesMessage.trim()) return;
+    setActionLoading(true);
+    try {
+      const resp = await fetch(`/api/admin/issues/${issueId}/request-changes`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: changesMessage }),
+      });
+      if (resp.ok) {
+        setIssue((prev) => ({ ...prev, status: 'changes_requested' }));
+        setShowRequestChanges(false);
+        setChangesMessage('');
+        loadIssue();
+      }
+    } catch { /* ignore */ }
+    setActionLoading(false);
+  };
+
+  const handleAddCollaborator = async () => {
+    if (!newCollabProfile) return;
+    try {
+      const resp = await fetch(`/api/admin/issues/${issueId}/collaborators`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_id: newCollabProfile, role: newCollabRole }),
+      });
+      if (resp.ok) {
+        setShowAddCollab(false);
+        setNewCollabProfile('');
+        setNewCollabRole('contributor');
+        // Reload collaborators
+        const collabResp = await fetch(`/api/admin/issues/${issueId}/collaborators`, { credentials: 'same-origin' });
+        if (collabResp.ok) setCollaborators(await collabResp.json());
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleRemoveCollaborator = async (collaboratorId: string) => {
+    if (!confirm('Retirer ce membre de l\'équipe ?')) return;
+    try {
+      await fetch(`/api/admin/issues/${issueId}/collaborators?id=${collaboratorId}`, {
+        method: 'DELETE', credentials: 'same-origin',
+      });
+      setCollaborators((prev) => prev.filter((c) => c.id !== collaboratorId));
+    } catch { /* ignore */ }
+  };
+
+  const handleUpdateCollabRole = async (collaboratorId: string, role: string) => {
+    try {
+      await fetch(`/api/admin/issues/${issueId}/collaborators`, {
+        method: 'PATCH', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collaborator_id: collaboratorId, role }),
+      });
+      setCollaborators((prev) => prev.map((c) => c.id === collaboratorId ? { ...c, role } : c));
+    } catch { /* ignore */ }
+  };
+
+  const loadAvailableProfiles = async () => {
+    try {
+      const resp = await fetch('/api/admin/lecteurs', { credentials: 'same-origin' });
+      if (resp.ok) {
+        const data = await resp.json();
+        // Filter to active profiles with author/editor roles
+        const profiles = (Array.isArray(data) ? data : []).filter((p: Record<string, unknown>) =>
+          p.status === 'active' && ['author', 'editor'].includes(p.role as string)
+        ).map((p: Record<string, unknown>) => ({
+          id: p.id as string,
+          display_name: (p.display_name as string) || (p.first_name as string) || '—',
+          email: (p.email as string) || '',
+        }));
+        setAvailableProfiles(profiles);
+      }
+    } catch { /* ignore */ }
+  };
+
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return '';
     if (bytes < 1024) return `${bytes} o`;
@@ -258,11 +409,83 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
             {issueId === 'new' ? 'Nouveau Cahier' : `Cahier N°${issue.issue_number}`}
           </h2>
         </div>
-        <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/90 disabled:opacity-50">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Enregistrer
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Submit to review (author) */}
+          {issueId !== 'new' && isAuthor && (issue.status === 'draft' || issue.status === 'changes_requested') && (
+            <button onClick={handleSubmit} disabled={actionLoading} className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50">
+              {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              Soumettre à la rédaction
+            </button>
+          )}
+          {/* Validate / Request changes (editor/admin) */}
+          {issueId !== 'new' && canReview && issue.status === 'review' && (
+            <>
+              <button onClick={handleValidate} disabled={actionLoading} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                Valider
+              </button>
+              <button onClick={() => setShowRequestChanges(true)} disabled={actionLoading} className="flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50">
+                <MessageSquare className="h-4 w-4" />
+                Demander corrections
+              </button>
+            </>
+          )}
+          <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/90 disabled:opacity-50">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Enregistrer
+          </button>
+        </div>
       </div>
+
+      {/* Submit error */}
+      {submitError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-sm text-red-700">{submitError}</p>
+        </div>
+      )}
+
+      {/* Review lock notice for authors */}
+      {isLocked && (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+          <Lock className="h-4 w-4 text-blue-600" />
+          <span className="text-sm font-medium text-blue-700">Cahier en cours de relecture. L'édition est verrouillée.</span>
+        </div>
+      )}
+
+      {/* Changes requested feedback */}
+      {issue.status === 'changes_requested' && feedback.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-amber-600" />
+            <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-amber-700">Corrections demandées par la rédaction</h3>
+          </div>
+          <div className="mt-3 space-y-2">
+            {feedback.map((fb) => (
+              <div key={fb.id} className="rounded-lg border border-amber-200 bg-white p-3">
+                <p className="text-sm text-neutral-700">{fb.message}</p>
+                <p className="mt-1 text-xs text-neutral-400">{new Date(fb.created_at).toLocaleString('fr-FR')}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Request changes modal */}
+      {showRequestChanges && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="font-display text-lg font-bold text-neutral-800">Demander des corrections</h3>
+            <p className="mt-1 text-sm text-neutral-500">Indiquez les corrections demandées à l'auteur.</p>
+            <textarea value={changesMessage} onChange={(e) => setChangesMessage(e.target.value)} rows={4} className="mt-4 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" placeholder="Merci de vérifier..." />
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setShowRequestChanges(false)} className="rounded-lg px-4 py-2 text-sm text-neutral-500 hover:text-neutral-700">Annuler</button>
+              <button onClick={handleRequestChanges} disabled={actionLoading || !changesMessage.trim()} className="flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50">
+                {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Envoyer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-neutral-200">
@@ -290,6 +513,14 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
         >
           PDF
         </button>
+        {issueId !== 'new' && (
+          <button
+            onClick={() => setActiveTab('equipe')}
+            className={`px-4 py-2 text-sm font-medium ${activeTab === 'equipe' ? 'border-b-2 border-ink text-ink' : 'text-neutral-500 hover:text-neutral-700'}`}
+          >
+            Équipe
+          </button>
+        )}
       </div>
 
       {activeTab === 'infos' && (
@@ -536,6 +767,88 @@ export default function CahierEditorClient({ issueId }: { issueId: string }) {
                   </label>
                 </>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'equipe' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-neutral-600">Équipe éditoriale</h3>
+              <p className="mt-1 text-xs text-neutral-400">Membres assignés à ce Cahier.</p>
+            </div>
+            {canManageTeam && (
+              <button onClick={() => { setShowAddCollab(true); loadAvailableProfiles(); }} className="flex items-center gap-2 rounded-lg bg-ink px-3 py-1.5 text-xs font-medium text-white hover:bg-ink/90">
+                <Plus className="h-3.5 w-3.5" /> Ajouter un membre
+              </button>
+            )}
+          </div>
+
+          {collaborators.length === 0 ? (
+            <div className="rounded-lg border border-neutral-200 bg-white p-8 text-center">
+              <Users className="mx-auto h-8 w-8 text-neutral-300" strokeWidth={1.5} />
+              <p className="mt-2 text-sm text-neutral-400">Aucun collaborateur assigné.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {collaborators.map((c) => (
+                <div key={c.id} className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3">
+                  <div>
+                    <p className="text-sm font-medium text-neutral-800">{c.profiles?.display_name || '—'}</p>
+                    <p className="text-xs text-neutral-400">{c.profiles?.email || ''}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {canManageTeam ? (
+                      <>
+                        <select value={c.role} onChange={(e) => handleUpdateCollabRole(c.id, e.target.value)} className="rounded-lg border border-neutral-200 px-2 py-1 text-xs">
+                          <option value="contributor">Contributeur</option>
+                          <option value="editor">Éditeur</option>
+                        </select>
+                        <button onClick={() => handleRemoveCollaborator(c.id)} className="rounded p-1 text-red-400 hover:bg-red-50">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-500">
+                        {c.role === 'editor' ? 'Éditeur' : 'Contributeur'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add collaborator modal */}
+          {showAddCollab && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+              <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+                <h3 className="font-display text-lg font-bold text-neutral-800">Ajouter un membre</h3>
+                <div className="mt-4 space-y-4">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-neutral-500">Utilisateur</label>
+                    <select value={newCollabProfile} onChange={(e) => setNewCollabProfile(e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                      <option value="">—</option>
+                      {availableProfiles.map((p) => (
+                        <option key={p.id} value={p.id}>{p.display_name} ({p.email})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-neutral-500">Rôle dans ce Cahier</label>
+                    <select value={newCollabRole} onChange={(e) => setNewCollabRole(e.target.value)} className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                      <option value="contributor">Contributeur</option>
+                      <option value="editor">Éditeur</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button onClick={() => setShowAddCollab(false)} className="rounded-lg px-4 py-2 text-sm text-neutral-500 hover:text-neutral-700">Annuler</button>
+                  <button onClick={handleAddCollaborator} disabled={!newCollabProfile} className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white hover:bg-ink/90 disabled:opacity-50">Ajouter</button>
+                </div>
+              </div>
             </div>
           )}
         </div>

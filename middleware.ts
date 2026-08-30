@@ -16,20 +16,34 @@ const ADMIN_ONLY_ROUTES = [
   '/admin/pages',
   '/admin/homepage',
   '/admin/import',
-  '/admin/medias',
-  '/admin/cahiers',
 ];
 
 // Routes that authors CAN access
 const AUTHOR_ALLOWED_ROUTES = [
   '/admin/dashboard',
   '/admin/mes-articles',
+  '/admin/mes-cahiers',
   '/admin/articles',
   '/admin/mon-profil',
   '/admin/aide',
+  '/admin/medias',
+];
+
+// Cahier routes that authors can access for assigned issues (permission checked at API level)
+const AUTHOR_CAHIER_ALLOWED = [
+  '/admin/cahiers/new',
 ];
 
 function isAdminOnlyRoute(pathname: string): boolean {
+  // Allow authors to access /admin/cahiers/[id]/edit and /admin/cahiers/[id]/preview
+  // The actual permission check happens at the API level
+  if (pathname.startsWith('/admin/cahiers/') && (pathname.endsWith('/edit') || pathname.endsWith('/preview'))) {
+    return false;
+  }
+  // Allow authors to access /admin/mes-cahiers
+  if (pathname === '/admin/mes-cahiers' || pathname.startsWith('/admin/mes-cahiers/')) {
+    return false;
+  }
   return ADMIN_ONLY_ROUTES.some((route) => pathname === route || pathname.startsWith(route + '/'));
 }
 
