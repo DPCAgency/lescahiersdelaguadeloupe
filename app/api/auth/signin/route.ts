@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sanitizeRedirect } from '@/lib/auth/admin';
+import { getRequiredServiceRoleClient } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -51,35 +52,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Email ou mot de passe incorrect' }, { status: 401 });
     }
 
-    // Fetch profile to determine role
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: `Bearer ${data.session.access_token}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-
-    const { data: profile } = await userClient
+    // Fetch profile using service role client to bypass RLS
+    const admin = getRequiredServiceRoleClient();
+    const { data: profile } = await admin
       .from('profiles')
       .select('role, status')
       .eq('id', data.user.id)
       .maybeSingle();
 
-    // Determine redirect target
-    const safeRedirect = sanitizeRedirect(redirectParam);
-
-    // If user is admin and redirect is to admin area, send them there
-    // If user is admin but no admin redirect, send to /mon-compte (they can navigate to admin)
-    // If user is reader, always send to safeRedirect (which defaults to /mon-compte)
-    let finalRedirect = safeRedirect;
-
     if (profile && profile.status !== 'active') {
-      // Inactive account · sign out and reject
       await client.auth.signOut();
       return NextResponse.json({ error: 'Compte désactivé. Contactez l\'administrateur.' }, { status: 403 });
     }
 
+    const isAdmin = profile && ADMIN_ROLES.has(profile.role);
+    const safeRedirect = sanitizeRedirect(redirectParam);
+    let finalRedirect = safeRedirect;
+
     // If the redirect target is an admin path but user is not admin, send to /mon-compte
-    if (safeRedirect.startsWith('/admin') && (!profile || !ADMIN_ROLES.has(profile.role))) {
+    if (safeRedirect.startsWith('/admin') && !isAdmin) {
       finalRedirect = '/mon-compte';
+    }
+
+    // If no redirect param and user is admin, send to /admin/dashboard
+    if (!redirectParam && isAdmin) {
+      finalRedirect = '/admin/dashboard';
     }
 
     return createSessionResponse(req, data.session.access_token, data.session.refresh_token, data.session.expires_in, finalRedirect);

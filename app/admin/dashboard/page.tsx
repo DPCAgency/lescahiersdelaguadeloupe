@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { FileText, BookOpen, Users, ShoppingCart, ArrowRight, TrendingUp, Plus, CheckCircle, Clock, AlertCircle, Calendar } from 'lucide-react';
-import { supabaseAdmin } from '@/lib/supabase/server';
+import { supabaseAdmin, getRequiredServiceRoleClient } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -27,12 +27,8 @@ async function getDashboardUser(): Promise<DashboardUser | null> {
     const { data: userData } = await client.auth.getUser(token);
     if (!userData?.user?.id) return null;
 
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-
-    const { data: profile } = await userClient
+    const admin = getRequiredServiceRoleClient();
+    const { data: profile } = await admin
       .from('profiles')
       .select('role, author_id, display_name')
       .eq('id', userData.user.id)
