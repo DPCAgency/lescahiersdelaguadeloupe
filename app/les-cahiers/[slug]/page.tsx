@@ -128,12 +128,12 @@ export default async function PublicIssuePage({ params }: { params: { slug: stri
                 {hasPdf && (
                   <>
                     {hasStudioPages && (
-                      <a href={`/les-cahiers/${issue.slug}/lire`} className="btn-editorial-secondary">
+                      <a href={`/les-cahiers/${issue.slug}/lire`} className="btn-editorial-outline">
                         <FileText className="h-4 w-4" />
                         Lire le PDF en ligne
                       </a>
                     )}
-                    <a href={`/api/issues/${issue.id}/download`} className="btn-editorial-secondary">
+                    <a href={`/api/issues/${issue.id}/download`} className="btn-editorial-outline">
                       <Download className="h-4 w-4" />
                       Télécharger le PDF
                     </a>
@@ -195,7 +195,7 @@ export default async function PublicIssuePage({ params }: { params: { slug: stri
                   Lire le PDF en ligne
                   <ArrowRight className="h-4 w-4" />
                 </a>
-                <a href={`/api/issues/${issue.id}/download`} className="btn-editorial-secondary">
+                <a href={`/api/issues/${issue.id}/download`} className="btn-editorial-outline">
                   <Download className="h-4 w-4" />
                   Télécharger le PDF
                 </a>

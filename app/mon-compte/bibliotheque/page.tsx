@@ -31,7 +31,7 @@ export default function Page() {
             <p className="mt-5 text-[14px] leading-relaxed text-text">
               Couverture et première page gratuites. Votre lecture peut être reprise à tout moment.
             </p>
-            <Link href="/les-cahiers/numero-02/lecture" className="btn-editorial mt-6">
+            <Link href="/les-cahiers/numero-02/lire" className="btn-editorial mt-6">
               Reprendre la lecture
               <ArrowRight className="h-4 w-4" />
             </Link>
@@ -50,7 +50,7 @@ export default function Page() {
             <p className="mt-5 text-[14px] leading-relaxed text-text">
               {paidPages.length} pages payantes sont disponibles à l'achat page par page dans le lecteur.
             </p>
-            <Link href="/les-cahiers/numero-02/lecture" className="btn-editorial-outline mt-6">
+            <Link href="/les-cahiers/numero-02/lire" className="btn-editorial-outline mt-6">
               Voir les pages
               <ArrowRight className="h-4 w-4" />
             </Link>

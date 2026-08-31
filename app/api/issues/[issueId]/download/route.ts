@@ -75,11 +75,11 @@ export async function GET(
     const pdfPath = issue.pdf_file_path;
 
     // If it's a public-assets path, redirect to public URL
-    if (pdfPath.startsWith('/assets/pdf/')) {
+    if (pdfPath.startsWith('/assets/pdf/') || pdfPath.startsWith('assets/pdf/')) {
       const downloadUrl = `${getSupabaseUrl()}/storage/v1/object/public/${pdfPath.replace(/^\//, '')}`;
       return NextResponse.redirect(downloadUrl, {
         headers: {
-          'Content-Disposition': `attachment; filename="Cahier-N${issue.issue_number}.pdf"`,
+          'Content-Disposition': `attachment; filename="les-cahiers-de-la-guadeloupe-numero-${issue.issue_number}.pdf"`,
         },
       });
     }
@@ -96,7 +96,7 @@ export async function GET(
 
     return NextResponse.redirect(signedData.signedUrl, {
       headers: {
-        'Content-Disposition': `attachment; filename="Cahier-N${issue.issue_number}.pdf"`,
+        'Content-Disposition': `attachment; filename="les-cahiers-de-la-guadeloupe-numero-${issue.issue_number}.pdf"`,
       },
     });
   } catch (err) {

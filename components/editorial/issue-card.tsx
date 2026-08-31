@@ -42,13 +42,24 @@ export function IssueCard({ issue, href }: IssueCardProps) {
         </p>
         <div className="mt-4 flex items-center justify-between">
           <span className="text-[12px] text-muted">{issue.pageCount} pages</span>
-          <Link
-            href={href}
-            className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary"
-          >
-            Découvrir
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Link>
+          <div className="flex items-center gap-3">
+            {issue.pdfFile && (
+              <Link
+                href={`/les-cahiers/${issue.slug ?? issue.number.replace('N°', 'numero-').toLowerCase()}/lire`}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary"
+              >
+                Lire
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+            )}
+            <Link
+              href={href}
+              className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary"
+            >
+              Découvrir
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </div>
         </div>
       </div>
     </article>

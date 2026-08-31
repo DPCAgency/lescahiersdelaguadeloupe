@@ -189,7 +189,7 @@ export function IssueReaderClient({
 
   const handleBuyFull = () => {
     if (!paymentsEnabled) return;
-    window.location.href = '/les-cahiers/numero-02/acheter';
+    window.location.href = '/les-cahiers/numero-02';
   };
 
   if (!currentPage) return null;

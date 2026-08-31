@@ -47,8 +47,7 @@ export default async function Page() {
           </h1>
           <p className="mt-5 max-w-2xl text-[18px] leading-relaxed text-text">
             La collection des numéros de la revue. Chaque cahier est une publication numérique
-            structurée page par page. Commencez à lire gratuitement, puis débloquez les pages de
-            votre choix.
+            structurée page par page. Lisez les cahiers en ligne ou téléchargez-les au format PDF.
           </p>
         </div>
       </section>

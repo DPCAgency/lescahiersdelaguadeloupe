@@ -32,11 +32,11 @@ export function LatestIssue({ issue }: LatestIssueProps) {
                 {issue.pageCount} pages
               </span>
               <span aria-hidden>•</span>
-              <span>Couverture et première page en accès libre</span>
+              <span>Accès libre</span>
             </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/les-cahiers/numero-02/lecture"
+                href="/les-cahiers/numero-02/lire"
                 className="btn-editorial border-primary bg-primary hover:bg-primary-dark hover:border-primary-dark"
               >
                 Commencer la lecture
@@ -61,7 +61,7 @@ export function LatestIssue({ issue }: LatestIssueProps) {
               />
             </div>
             <p className="mt-3 text-right text-[12px] text-white/50">
-              Cahier complet · {formatPrice(issue.fullDownloadPrice)}
+              {issue.pageCount} pages
             </p>
           </div>
         </div>
