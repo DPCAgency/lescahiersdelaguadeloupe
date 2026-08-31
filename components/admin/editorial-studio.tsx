@@ -134,6 +134,7 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [issue, setIssue] = useState<IssueData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<PageBlock[]>([]);
   const [pageLayouts, setPageLayouts] = useState<Record<number, PageLayout>>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -169,6 +170,11 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
           scheduled_at: d.scheduled_at ?? null,
           pdf_file_path: d.pdf_file_path ?? null,
         });
+      } else {
+        if (issueResp.status === 401) setLoadError('Session expirée. Reconnectez-vous.');
+        else if (issueResp.status === 403) setLoadError('Vous n\u2019avez pas acc\u00e8s \u00e0 ce Cahier.');
+        else if (issueResp.status === 404) setLoadError('Cahier introuvable.');
+        else setLoadError('Impossible de charger le Cahier.');
       }
 
       if (blocksResp.ok) {
@@ -492,7 +498,7 @@ export default function EditorialStudio({ issueId }: { issueId: string }) {
         <button onClick={() => router.push('/admin/cahiers')} className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-700">
           <ArrowLeft className="h-4 w-4" /> Retour
         </button>
-        <p className="text-sm text-neutral-400">Cahier introuvable.</p>
+        <p className="text-sm text-neutral-400">{loadError ?? 'Cahier introuvable.'}</p>
       </div>
     );
   }

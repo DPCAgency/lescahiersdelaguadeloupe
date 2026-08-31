@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { NextRequest } from 'next/server';
+import { getRequiredServiceRoleClient } from '@/lib/supabase/server';
 
 const ADMIN_ROLES = new Set(['admin', 'super_admin']);
 const EDITOR_ROLES = new Set(['editor', 'admin', 'super_admin']);
@@ -103,12 +104,8 @@ export async function getIssueUser(req: NextRequest): Promise<IssueUser | null> 
     const { data: userData } = await client.auth.getUser(token);
     if (!userData?.user?.id) return null;
 
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-
-    const { data: profile } = await userClient
+    const admin = getRequiredServiceRoleClient();
+    const { data: profile } = await admin
       .from('profiles')
       .select('role, status')
       .eq('id', userData.user.id)
